@@ -37,10 +37,12 @@ const getTextContent = callable<[], { status: string; content: string }>("get_te
 // renders, it can immediately show the correct state without flashing.
 // The state is pre-fetched in definePlugin() before the component mounts.
 
+const DEFAULT_PORT = 59271;
+
 let serverRunningGlobal = false;
 let serverUrlGlobal = '';
 let serverIpGlobal = '';
-let serverPortGlobal = 8000;
+let serverPortGlobal = DEFAULT_PORT;
 let pluginReady = false;  // Set to true after initial status fetch
 
 // Define types for server and transfer status
@@ -206,13 +208,13 @@ function Content() {
       if (enabled) {
         // Start server
         console.log('Starting server...');
-        const response = await startServer(8000);
+        const response = await startServer(DEFAULT_PORT);
         
         if (response.status === 'success' || response.message === '服务器已在运行') {
           // Update global cache
           serverRunningGlobal = true;
           serverIpGlobal = response.ip_address || serverIpGlobal;
-          serverPortGlobal = response.port || 8000;
+          serverPortGlobal = response.port || DEFAULT_PORT;
           serverUrlGlobal = response.url || `http://${serverIpGlobal}:${serverPortGlobal}`;
           
           setServerStatus((prev: ServerStatusState) => ({
@@ -293,7 +295,7 @@ function Content() {
       
       // Update global cache
       serverRunningGlobal = statusResponse.running;
-      serverPortGlobal = statusResponse.port || 8000;
+      serverPortGlobal = statusResponse.port || DEFAULT_PORT;
       
       // Only update UI if status actually changed
       if (statusResponse.running !== currentStatus.running) {
@@ -308,7 +310,7 @@ function Content() {
             running: true,
             url: serverUrlGlobal,
             ip_address: ipAddress,
-            port: statusResponse.port || 8000,
+            port: statusResponse.port || DEFAULT_PORT,
             loading: false
           }));
         } else {
@@ -340,7 +342,7 @@ function Content() {
         
         // Update global cache
         serverRunningGlobal = status.running;
-        serverPortGlobal = status.port || 8000;
+        serverPortGlobal = status.port || DEFAULT_PORT;
         
         if (status.running) {
           // Server is running, update URL info
@@ -352,7 +354,7 @@ function Content() {
             running: true,
             url: serverUrlGlobal,
             ip_address: ipAddress,
-            port: status.port || 8000,
+            port: status.port || DEFAULT_PORT,
             loading: false
           });
         } else {
@@ -668,7 +670,7 @@ export default definePlugin(() => {
       const status = await getServerStatus();
       
       serverRunningGlobal = status.running;
-      serverPortGlobal = status.port || 8000;
+      serverPortGlobal = status.port || DEFAULT_PORT;
       
       if (status.running) {
         serverIpGlobal = status.ip_address || '127.0.0.1';

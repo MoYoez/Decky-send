@@ -317,7 +317,7 @@ def start_server_thread(plugin):
             config.logger.info("Server thread stopped cleanly")
 
 
-async def start_server(plugin, port=8000):
+async def start_server(plugin, port=config.DEFAULT_SERVER_PORT):
     """Start HTTP server
     
     Args:
@@ -597,7 +597,7 @@ async def load_settings(plugin):
         plugin.server_running = settings.get(plugin.SETTING_RUNNING, False)
         
         # Load server port
-        plugin.server_port = settings.get(plugin.SETTING_PORT, 8000)
+        plugin.server_port = settings.get(plugin.SETTING_PORT, config.DEFAULT_SERVER_PORT)
         
         config.logger.info(f"Loaded settings: running={plugin.server_running}, port={plugin.server_port}")
         
@@ -681,6 +681,7 @@ def setup_main_server_routes(app, plugin):
     app.router.add_post('/api/files/delete', file_operations.delete_file)
     app.router.add_get('/api/files/download', file_operations.download_file)
     app.router.add_post('/api/files/add-to-steam', file_operations.add_file_to_steam)
+    app.router.add_get('/api/system/sdcard', file_operations.get_sdcard_info)
     
     # Add OPTIONS handler for CORS preflight
     app.router.add_route('OPTIONS', '/{path:.*}', lambda r: web.Response())

@@ -17,6 +17,64 @@ from aiohttp import web
 import config
 
 # =============================================================================
+# System Detection Helpers
+# =============================================================================
+
+def _find_sdcard_mount():
+    """Find the SD card mount path on Steam Deck.
+
+    Returns:
+        str | None: Mount path if found, otherwise None
+    """
+    candidates = []
+
+    def add_candidate(path):
+        if path and os.path.isdir(path) and path not in candidates:
+            candidates.append(path)
+
+    # Common direct mount points
+    add_candidate("/run/media/mmcblk0p1")
+    add_candidate("/media/mmcblk0p1")
+
+    # SteamOS user mount root
+    deck_media_root = "/run/media/deck"
+    if os.path.isdir(deck_media_root):
+        try:
+            for name in sorted(os.listdir(deck_media_root)):
+                add_candidate(os.path.join(deck_media_root, name))
+        except Exception as e:
+            config.logger.debug(f"Failed to list {deck_media_root}: {e}")
+
+    # Fallback: other mounts under /run/media
+    media_root = "/run/media"
+    if os.path.isdir(media_root):
+        try:
+            for name in sorted(os.listdir(media_root)):
+                if name == "deck":
+                    continue
+                add_candidate(os.path.join(media_root, name))
+        except Exception as e:
+            config.logger.debug(f"Failed to list {media_root}: {e}")
+
+    # Prefer actual mount points
+    for path in candidates:
+        try:
+            if os.path.ismount(path):
+                return path
+        except Exception:
+            continue
+
+    # Fallback: look for common Steam library markers
+    for path in candidates:
+        try:
+            if os.path.isdir(os.path.join(path, "steamapps")) or os.path.isdir(os.path.join(path, "SteamLibrary")):
+                return path
+        except Exception:
+            continue
+
+    return candidates[0] if candidates else None
+
+# =============================================================================
 # HTTP API Handlers (for aiohttp routes)
 # =============================================================================
 
@@ -389,6 +447,29 @@ async def download_file(request):
         )
     except Exception as e:
         config.logger.error(f"Failed to download file: {e}")
+        return web.json_response({"status": "error", "message": str(e)}, status=500)
+
+
+async def get_sdcard_info(request):
+    """Get SD card mount information
+    
+    GET /api/system/sdcard
+    """
+    try:
+        mount_path = _find_sdcard_mount()
+        if mount_path:
+            return web.json_response({
+                "status": "success",
+                "mounted": True,
+                "path": mount_path
+            })
+        return web.json_response({
+            "status": "success",
+            "mounted": False,
+            "path": ""
+        })
+    except Exception as e:
+        config.logger.error(f"Failed to detect SD card mount: {e}")
         return web.json_response({"status": "error", "message": str(e)}, status=500)
 
 

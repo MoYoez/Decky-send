@@ -1228,10 +1228,11 @@ const getTextContent = callable("get_text_content");
 // These global variables cache the server status so that when the component
 // renders, it can immediately show the correct state without flashing.
 // The state is pre-fetched in definePlugin() before the component mounts.
+const DEFAULT_PORT = 59271;
 let serverRunningGlobal = false;
 let serverUrlGlobal = '';
 let serverIpGlobal = '';
-let serverPortGlobal = 8000;
+let serverPortGlobal = DEFAULT_PORT;
 let pluginReady = false; // Set to true after initial status fetch
 function Content() {
     // Show loading screen while plugin is initializing (like ToMoon's "Init..." screen)
@@ -1346,8 +1347,10 @@ function Content() {
     };
     // Calculate transfer progress percentage (0-100)
     const calculateProgress = () => {
-        if (transferStatus.size === 0)
+        if (transferStatus.size <= 0 || transferStatus.transferred < 0)
             return 0;
+        if (transferStatus.transferred >= transferStatus.size)
+            return 100;
         return Math.min(100, Math.round((transferStatus.transferred / transferStatus.size) * 100));
     };
     // Handle service toggle switch
@@ -1357,12 +1360,12 @@ function Content() {
             if (enabled) {
                 // Start server
                 console.log('Starting server...');
-                const response = await startServer(8000);
+                const response = await startServer(DEFAULT_PORT);
                 if (response.status === 'success' || response.message === '服务器已在运行') {
                     // Update global cache
                     serverRunningGlobal = true;
                     serverIpGlobal = response.ip_address || serverIpGlobal;
-                    serverPortGlobal = response.port || 8000;
+                    serverPortGlobal = response.port || DEFAULT_PORT;
                     serverUrlGlobal = response.url || `http://${serverIpGlobal}:${serverPortGlobal}`;
                     setServerStatus((prev) => ({
                         ...prev,
@@ -1440,7 +1443,7 @@ function Content() {
             const currentStatus = serverStatusRef.current;
             // Update global cache
             serverRunningGlobal = statusResponse.running;
-            serverPortGlobal = statusResponse.port || 8000;
+            serverPortGlobal = statusResponse.port || DEFAULT_PORT;
             // Only update UI if status actually changed
             if (statusResponse.running !== currentStatus.running) {
                 if (statusResponse.running) {
@@ -1453,7 +1456,7 @@ function Content() {
                         running: true,
                         url: serverUrlGlobal,
                         ip_address: ipAddress,
-                        port: statusResponse.port || 8000,
+                        port: statusResponse.port || DEFAULT_PORT,
                         loading: false
                     }));
                 }
@@ -1482,7 +1485,7 @@ function Content() {
                 const status = await getServerStatus();
                 // Update global cache
                 serverRunningGlobal = status.running;
-                serverPortGlobal = status.port || 8000;
+                serverPortGlobal = status.port || DEFAULT_PORT;
                 if (status.running) {
                     // Server is running, update URL info
                     const ipAddress = status.ip_address || '127.0.0.1';
@@ -1492,7 +1495,7 @@ function Content() {
                         running: true,
                         url: serverUrlGlobal,
                         ip_address: ipAddress,
-                        port: status.port || 8000,
+                        port: status.port || DEFAULT_PORT,
                         loading: false
                     });
                 }
@@ -1629,8 +1632,8 @@ function Content() {
                                     if (['Enter', 'Space'].includes(e.key)) {
                                         e.preventDefault();
                                     }
-                                }, children: serverStatus.url }) })] }) })), serverStatus.running && (SP_JSX.jsx(DFL.PanelSection, { title: "\u4F20\u8F93\u8BB0\u5F55", children: transferStatus.running ? (
-                // File transfer in progress
+                                }, children: serverStatus.url }) })] }) })), serverStatus.running && (SP_JSX.jsx(DFL.PanelSection, { title: "\u4F20\u8F93\u8BB0\u5F55", children: (transferStatus.running || (transferStatus.filename !== '' && transferStatus.size > 0)) ? (
+                // File transfer in progress or recent transfer
                 SP_JSX.jsxs("div", { style: { padding: '10px 0' }, children: [SP_JSX.jsxs("div", { style: { display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }, children: [SP_JSX.jsx("span", { style: { fontSize: '14px', fontWeight: 'bold' }, children: transferStatus.filename }), SP_JSX.jsx("span", { style: { fontSize: '13px', color: '#666' }, children: formatFileSize(transferStatus.size) })] }), SP_JSX.jsx(DFL.ProgressBar, { nProgress: calculateProgress() }), SP_JSX.jsxs("div", { style: { display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }, children: [SP_JSX.jsxs("span", { style: { fontSize: '13px', color: '#666' }, children: ["\u5DF2\u4F20\u8F93: ", formatFileSize(transferStatus.transferred)] }), SP_JSX.jsxs("span", { style: { fontSize: '13px', fontWeight: 'bold', color: '#1b73e8' }, children: [calculateProgress(), "%"] })] }), SP_JSX.jsxs("div", { style: { display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: '#666' }, children: [SP_JSX.jsxs("span", { children: ["\u901F\u5EA6: ", formatFileSize(transferStatus.speed), "/s"] }), SP_JSX.jsxs("span", { children: ["\u5269\u4F59: ", formatTime(transferStatus.eta)] })] })] })) : textStatus.received ? (
                 // Text received
                 SP_JSX.jsxs("div", { style: { padding: '10px 0' }, children: [SP_JSX.jsx("div", { style: {
@@ -1667,7 +1670,7 @@ var index = definePlugin(() => {
             console.log("Pre-fetching server status...");
             const status = await getServerStatus();
             serverRunningGlobal = status.running;
-            serverPortGlobal = status.port || 8000;
+            serverPortGlobal = status.port || DEFAULT_PORT;
             if (status.running) {
                 serverIpGlobal = status.ip_address || '127.0.0.1';
                 serverUrlGlobal = `http://${serverIpGlobal}:${serverPortGlobal}`;

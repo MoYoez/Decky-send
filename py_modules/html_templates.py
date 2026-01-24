@@ -101,15 +101,28 @@ def get_file_manager_html():
                 border: 1px solid #333;
                 border-radius: 6px;
                 padding: 10px;
-                flex: 1;
-                overflow-y: auto;
+                flex: 1 1 auto;
+                overflow: auto;
                 background-color: rgba(255, 255, 255, 0.05);
                 min-height: 0; /* Prevent overflow in flex container */
+                display: flex;
             }
             .file-grid {
-                display: grid;
-                grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+                display: flex;
+                flex-wrap: wrap;
+                align-content: flex-start;
                 gap: 12px;
+                width: 100%;
+            }
+            .file-grid .file-item {
+                min-width: 0;
+            }
+            .file-grid .file-name {
+                max-width: 100%;
+                min-width: 0;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
             }
             .file-item {
                 border: 1px solid #333;
@@ -123,6 +136,8 @@ def get_file_manager_html():
                 min-height: 100px;
                 justify-content: center;
                 gap: 5px;
+                flex: 1 1 120px;
+                max-width: 200px;
             }
             .file-item:hover {
                 background-color: rgba(27, 115, 232, 0.2);
@@ -166,6 +181,30 @@ def get_file_manager_html():
                 color: white;
                 font-size: 20px;
                 cursor: pointer;
+            }
+
+            @media (max-width: 640px) {
+                body {
+                    padding: 8px;
+                }
+                .breadcrumb {
+                    padding: 6px 8px;
+                }
+                .action-buttons {
+                    gap: 6px;
+                }
+                .action-buttons button {
+                    padding: 6px 12px;
+                    font-size: 12px;
+                }
+                .file-grid {
+                    gap: 8px;
+                }
+                .file-item {
+                    min-height: 90px;
+                    flex: 1 1 96px;
+                    max-width: 160px;
+                }
             }
             
             /* Textarea */
@@ -220,8 +259,13 @@ def get_file_manager_html():
     </head>
     <body style="margin: 0; padding: 10px; overflow: hidden; height: 100vh; display: flex; flex-direction: column;">
         <!-- Breadcrumb Navigation -->
-        <div class="breadcrumb" id="breadcrumb">
-            <span class="breadcrumb-item" data-path="">主页</span>
+        <div style="display: flex; align-items: center; gap: 8px;">
+            <div class="breadcrumb" id="breadcrumb" style="flex: 1; overflow-x: auto; white-space: nowrap;">
+                <span class="breadcrumb-item" data-path="">主页</span>
+            </div>
+            <button id="sdcard-btn" style="padding: 6px 12px; background-color: #1b73e8; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; margin: 0; display: none; white-space: nowrap;">
+                内存卡
+            </button>
         </div>
         
         <!-- Action Buttons -->
@@ -234,7 +278,7 @@ def get_file_manager_html():
         </div>
         
         <!-- File List -->
-        <div class="file-list-container" style="flex: 1; overflow-y: auto; max-height: none;">
+        <div class="file-list-container" style="flex: 1 1 auto; overflow: auto; max-height: none; min-height: 0; display: flex;">
             <div id="file-manager-list" class="file-grid"></div>
         </div>
         
@@ -300,6 +344,8 @@ def get_file_manager_html():
                 const pasteBtn = document.getElementById('paste-btn');
                 const newFileBtn = document.getElementById('new-file-btn');
                 const newDirBtn = document.getElementById('new-dir-btn');
+                const sdcardBtn = document.getElementById('sdcard-btn');
+                let sdcardPath = '';
 
                 const contextMenu = document.getElementById('context-menu');
                 
@@ -321,6 +367,14 @@ def get_file_manager_html():
                 const inputField = document.getElementById('input-field');
                 const inputOk = document.getElementById('input-ok');
                 const inputCancel = document.getElementById('input-cancel');
+
+                if (sdcardBtn) {
+                    sdcardBtn.addEventListener('click', () => {
+                        if (sdcardPath) {
+                            navigateTo(sdcardPath);
+                        }
+                    });
+                }
                 
                 // Context Menu Items
                 const contextMenuItems = [
@@ -574,6 +628,28 @@ def get_file_manager_html():
                         breadcrumb.appendChild(item);
                     }
                 }
+
+                // Update SD card button visibility and path
+                async function updateSdcardButton() {
+                    if (!sdcardBtn) return;
+                    sdcardBtn.style.display = 'none';
+                    sdcardBtn.disabled = true;
+                    sdcardPath = '';
+                    
+                    try {
+                        const response = await fetch('/api/system/sdcard');
+                        if (!response.ok) return;
+                        const data = await response.json();
+                        
+                        if (data.status === 'success' && data.mounted && data.path) {
+                            sdcardPath = data.path;
+                            sdcardBtn.style.display = 'inline-block';
+                            sdcardBtn.disabled = false;
+                        }
+                    } catch (error) {
+                        console.error('检测内存卡失败:', error);
+                    }
+                }
                 
                 // Format file size
                 function formatSize(bytes) {
@@ -709,12 +785,16 @@ def get_file_manager_html():
                                 
                                 // File Name
                                 const fileName = document.createElement('div');
+                                fileName.className = 'file-name';
                                 fileName.textContent = file.name;
                                 fileName.style.fontSize = '12px';
                                 fileName.style.textAlign = 'center';
                                 fileName.style.overflow = 'hidden';
                                 fileName.style.textOverflow = 'ellipsis';
                                 fileName.style.width = '100%';
+                                fileName.style.whiteSpace = 'nowrap';
+                                fileName.style.maxWidth = '100%';
+                                fileName.style.minWidth = '0';
                                 
                                 // File Details
                                 const fileDetails = document.createElement('div');
@@ -965,6 +1045,7 @@ def get_file_manager_html():
                 });
                 
                 refreshBtn.addEventListener('click', () => {
+                    updateSdcardButton();
                     renderFileList(currentPath);
                 });
                 
@@ -996,6 +1077,7 @@ def get_file_manager_html():
                 updatePasteButtonVisibility();
                 
                 // Initial render
+                updateSdcardButton();
                 renderFileList(currentPath);
             });
         </script>
@@ -1019,17 +1101,45 @@ async def handle_index(request):
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>decky-send 文件上传</title>
         <style>
+            :root {
+                --bg: #0f1216;
+                --bg-elev: #141a20;
+                --panel: rgba(255, 255, 255, 0.06);
+                --panel-strong: rgba(255, 255, 255, 0.12);
+                --border: rgba(255, 255, 255, 0.12);
+                --text: #e7edf3;
+                --muted: #9aa6b2;
+                --accent: #4db6ac;
+                --accent-strong: #2fa69a;
+                --accent-soft: rgba(77, 182, 172, 0.18);
+                --danger: #ff6b6b;
+                --shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+            }
+            * {
+                box-sizing: border-box;
+            }
             body {
-                font-family: Arial, sans-serif;
+                font-family: "IBM Plex Sans", "Noto Sans", "Ubuntu", "Segoe UI", sans-serif;
                 max-width: 600px;
                 margin: 0 auto;
-                padding: 20px;
+                padding: 24px;
                 text-align: center;
-                background-color: #121212;
-                color: white;
+                background-color: var(--bg);
+                background-image:
+                    radial-gradient(900px 500px at 20% -10%, rgba(77, 182, 172, 0.16), transparent 60%),
+                    radial-gradient(800px 400px at 120% 20%, rgba(94, 156, 255, 0.12), transparent 60%),
+                    linear-gradient(180deg, #0f1216 0%, #10161b 100%);
+                color: var(--text);
             }
             h1 {
-                color: #1b73e8;
+                color: var(--text);
+                font-weight: 700;
+                letter-spacing: 0.5px;
+                margin-bottom: 6px;
+            }
+            p {
+                color: var(--muted);
+                margin-top: 0;
             }
             
             /* Tab styles */
@@ -1039,77 +1149,123 @@ async def handle_index(request):
             .tab-buttons {
                 display: flex;
                 justify-content: center;
-                margin-bottom: 20px;
-                border-bottom: 1px solid #333;
+                gap: 6px;
+                margin-bottom: 18px;
+                padding: 6px;
+                background: var(--panel);
+                border: 1px solid var(--border);
+                border-radius: 999px;
+                box-shadow: var(--shadow);
             }
             .tab-button {
-                background: none;
-                border: none;
-                color: #888;
-                padding: 12px 24px;
-                font-size: 16px;
+                background: transparent;
+                border: 1px solid transparent;
+                color: var(--muted);
+                padding: 10px 16px;
+                font-size: 14px;
                 cursor: pointer;
-                transition: all 0.3s ease;
-                border-radius: 0;
+                transition: all 0.2s ease;
+                border-radius: 999px;
                 margin: 0;
             }
             .tab-button.active {
-                color: #1b73e8;
-                border-bottom: 2px solid #1b73e8;
+                color: var(--text);
+                background: var(--accent-soft);
+                border-color: rgba(77, 182, 172, 0.45);
+                box-shadow: inset 0 0 0 1px rgba(77, 182, 172, 0.15);
             }
             .tab-button:hover {
-                color: #1b73e8;
-                background-color: rgba(27, 115, 232, 0.1);
+                color: var(--text);
+                background-color: rgba(255, 255, 255, 0.06);
             }
             
             .tab-panel {
                 display: none;
+                animation: fadeUp 200ms ease;
             }
             .tab-panel.active {
                 display: block;
             }
+            @keyframes fadeUp {
+                from { opacity: 0; transform: translateY(6px); }
+                to { opacity: 1; transform: translateY(0); }
+            }
             
             .upload-area {
-                border: 2px dashed #1b73e8;
-                border-radius: 10px;
-                padding: 40px;
-                margin: 20px 0;
+                border: 1.5px dashed var(--border);
+                border-radius: 16px;
+                padding: 36px;
+                margin: 18px 0;
                 cursor: pointer;
-                transition: all 0.3s ease;
+                background: var(--panel);
+                box-shadow: var(--shadow);
+                transition: all 0.25s ease;
             }
             .upload-area:hover {
-                background-color: rgba(27, 115, 232, 0.1);
+                border-color: rgba(77, 182, 172, 0.6);
+                background-color: rgba(77, 182, 172, 0.08);
             }
             .upload-area.dragover {
-                background-color: rgba(27, 115, 232, 0.2);
-                border-color: #3a86ff;
+                background-color: rgba(77, 182, 172, 0.16);
+                border-color: var(--accent);
             }
             #file-input {
                 display: none;
             }
             button {
-                background-color: #1b73e8;
-                color: white;
-                border: none;
-                padding: 12px 24px;
-                border-radius: 6px;
+                background: linear-gradient(180deg, var(--accent) 0%, var(--accent-strong) 100%);
+                color: #0c1416;
+                border: 1px solid rgba(0, 0, 0, 0.1);
+                padding: 11px 20px;
+                border-radius: 10px;
                 cursor: pointer;
-                font-size: 16px;
-                margin: 10px;
-                transition: background-color 0.3s ease;
+                font-size: 14px;
+                margin: 8px;
+                box-shadow: 0 8px 18px rgba(47, 166, 154, 0.25);
+                transition: transform 0.15s ease, box-shadow 0.2s ease, filter 0.2s ease;
             }
             button:hover {
-                background-color: #1557b0;
+                filter: brightness(1.05);
+                box-shadow: 0 10px 24px rgba(47, 166, 154, 0.3);
+            }
+            button:active {
+                transform: translateY(1px);
+            }
+            button:disabled {
+                opacity: 0.6;
+                cursor: not-allowed;
+                box-shadow: none;
+            }
+            textarea,
+            input[type="text"] {
+                width: 100%;
+                padding: 12px;
+                border: 1px solid var(--border);
+                border-radius: 10px;
+                background-color: var(--panel);
+                color: var(--text);
+                font-size: 14px;
             }
             .file-list {
-                margin: 20px 0;
+                margin: 18px 0;
                 text-align: left;
             }
+            .file-grid .file-item {
+                min-width: 0;
+            }
+            .file-grid .file-name {
+                max-width: 100%;
+                min-width: 0;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
             .file-item {
-                background-color: rgba(255, 255, 255, 0.1);
+                background-color: var(--panel);
+                border: 1px solid var(--border);
                 padding: 10px;
-                margin: 5px 0;
-                border-radius: 4px;
+                margin: 6px 0;
+                border-radius: 10px;
                 display: flex;
                 flex-direction: column;
                 gap: 8px;
@@ -1124,6 +1280,7 @@ async def handle_index(request):
                 overflow: hidden;
                 text-overflow: ellipsis;
                 white-space: nowrap;
+                color: var(--text);
             }
             .file-item-progress {
                 width: 100%;
@@ -1135,14 +1292,14 @@ async def handle_index(request):
             .file-progress-bar {
                 width: 100%;
                 height: 6px;
-                background-color: rgba(255, 255, 255, 0.1);
+                background-color: rgba(255, 255, 255, 0.08);
                 border-radius: 3px;
                 overflow: hidden;
                 margin-bottom: 4px;
             }
             .file-progress-fill {
                 height: 100%;
-                background: linear-gradient(90deg, #1b73e8 0%, #3a86ff 100%);
+                background: linear-gradient(90deg, var(--accent) 0%, #5fa6ff 100%);
                 border-radius: 3px;
                 width: 0%;
                 transition: width 0.2s ease;
@@ -1151,25 +1308,105 @@ async def handle_index(request):
                 display: flex;
                 justify-content: space-between;
                 font-size: 11px;
-                color: #888;
+                color: var(--muted);
             }
             .file-progress-text .speed {
-                color: #1b73e8;
+                color: var(--accent);
             }
             .cancel-btn {
-                background-color: #ff4444;
-                color: white;
-                border: none;
+                background-color: var(--danger);
+                color: #1a0b0b;
+                border: 1px solid rgba(0, 0, 0, 0.1);
                 padding: 5px 10px;
-                border-radius: 4px;
+                border-radius: 8px;
                 cursor: pointer;
                 font-size: 12px;
                 margin: 0;
-                transition: background-color 0.3s ease;
+                transition: filter 0.2s ease;
                 flex-shrink: 0;
+                box-shadow: none;
             }
             .cancel-btn:hover {
-                background-color: #cc0000;
+                filter: brightness(0.95);
+            }
+            .breadcrumb-bar {
+                background: var(--panel);
+                border: 1px solid var(--border);
+                border-radius: 12px;
+            }
+            .breadcrumb {
+                color: var(--muted);
+            }
+            .breadcrumb-item {
+                color: var(--text);
+            }
+            .breadcrumb-item:hover {
+                color: var(--accent);
+            }
+            .action-buttons button {
+                background: var(--panel-strong);
+                color: var(--text);
+                border: 1px solid var(--border);
+                box-shadow: none;
+                padding: 8px 14px;
+                font-size: 13px;
+                margin: 0;
+            }
+            .action-buttons button:hover {
+                border-color: rgba(77, 182, 172, 0.5);
+            }
+            .file-list-container {
+                border: 1px solid var(--border);
+                border-radius: 12px;
+                background-color: var(--panel);
+            }
+            #sdcard-btn {
+                background: var(--panel-strong);
+                color: var(--text);
+                border: 1px solid var(--border);
+                box-shadow: none;
+            }
+            .modal {
+                backdrop-filter: blur(4px);
+            }
+            .modal-content {
+                background-color: var(--bg-elev);
+                border: 1px solid var(--border);
+                box-shadow: var(--shadow);
+                border-radius: 14px;
+            }
+
+            @media (max-width: 640px) {
+                body {
+                    max-width: 100%;
+                    padding: 16px;
+                }
+                .tab-buttons {
+                    flex-wrap: wrap;
+                    border-radius: 18px;
+                }
+                .tab-button {
+                    padding: 8px 12px;
+                    font-size: 13px;
+                }
+                .upload-area {
+                    padding: 26px 18px;
+                }
+                button {
+                    padding: 10px 16px;
+                    font-size: 13px;
+                }
+                .file-grid {
+                    gap: 8px;
+                }
+                #file-manager .file-grid .file-item {
+                    min-height: 90px;
+                    flex: 1 1 96px;
+                    max-width: 160px;
+                }
+                #file-manager .breadcrumb-bar {
+                    padding: 6px 8px;
+                }
             }
         </style>
     </head>
@@ -1207,11 +1444,11 @@ async def handle_index(request):
                         id="text-input" 
                         placeholder="在此输入要传输的文本..." 
                         rows="6" 
-                        style="width: 100%; padding: 10px; border: 1px solid #1b73e8; border-radius: 6px; background-color: rgba(255, 255, 255, 0.1); color: white; font-size: 14px; resize: vertical;"></textarea>
+                        style="width: 100%; resize: vertical;"></textarea>
                 </div>
                 
                 <div style="margin: 10px 0;">
-                    <button id="send-text-btn" style="width: 100%; background-color: #1b73e8; color: white; border: none; padding: 12px 24px; border-radius: 6px; cursor: pointer; font-size: 16px;">
+                    <button id="send-text-btn" style="width: 100%; margin: 0;">
                         发送文本
                     </button>
                 </div>
@@ -1220,52 +1457,56 @@ async def handle_index(request):
             <!-- File Manager Tab -->
             <div id="file-manager" class="tab-panel">
                 <!-- File Manager UI -->
-                <div style="margin: 15px 0;">
+                <div id="file-manager-wrap" style="margin: 15px 0; display: flex; flex-direction: column; height: 100%; min-height: 0;">
                     <!-- Breadcrumb Navigation -->
-                    <div class="breadcrumb" id="breadcrumb" style="margin: 10px 0; padding: 8px 12px; background-color: rgba(255, 255, 255, 0.1); border-radius: 6px; overflow-x: auto;">
+                    <div class="breadcrumb-bar" style="margin: 10px 0; padding: 8px 12px; display: flex; align-items: center; gap: 8px;">
+                        <div class="breadcrumb" id="breadcrumb" style="flex: 1; overflow-x: auto; white-space: nowrap;"></div>
+                        <button id="sdcard-btn" style="padding: 6px 12px; font-size: 12px; margin: 0; display: none; white-space: nowrap;">
+                            内存卡
+                        </button>
                     </div>
                     
                     <!-- Action Buttons -->
             <div class="action-buttons" style="display: flex; gap: 8px; margin: 10px 0; flex-wrap: wrap;">
-                <button id="back-btn" style="padding: 8px 16px; background-color: #1b73e8; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px;">
+                <button id="back-btn" style="margin: 0;">
                     返回
                 </button>
-                <button id="refresh-btn" style="padding: 8px 16px; background-color: #1b73e8; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px;">
+                <button id="refresh-btn" style="margin: 0;">
                     刷新
                 </button>
-                <button id="new-file-btn" style="padding: 8px 16px; background-color: #34a853; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px;">
+                <button id="new-file-btn" style="margin: 0;">
                     新建文件
                 </button>
-                <button id="new-dir-btn" style="padding: 8px 16px; background-color: #34a853; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px;">
+                <button id="new-dir-btn" style="margin: 0;">
                     新建文件夹
                 </button>
-                <button id="paste-btn" style="padding: 8px 16px; background-color: #1b73e8; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; display: none;">
+                <button id="paste-btn" style="margin: 0; display: none;">
                     粘贴
                 </button>
-                <button id="copy-btn" style="padding: 8px 16px; background-color: #1b73e8; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px;">
+                <button id="copy-btn" style="margin: 0;">
                     复制
                 </button>
             </div>
                     
                     <!-- File List -->
-                    <div class="file-list-container" style="border: 1px solid #333; border-radius: 6px; padding: 10px; max-height: 400px; overflow-y: auto; background-color: rgba(255, 255, 255, 0.05);">
-                        <div id="file-manager-list" class="file-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 12px;"></div>
+                    <div class="file-list-container" style="padding: 10px; flex: 1 1 auto; overflow: auto; min-height: 0; display: flex;">
+                        <div id="file-manager-list" class="file-grid" style="display: flex; flex-wrap: wrap; align-content: flex-start; gap: 12px; width: 100%;"></div>
                     </div>
                 </div>
                 
                 <!-- File Editor Modal -->
-                <div id="file-editor-modal" class="modal" style="display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.7); padding: 20px;">
-                    <div class="modal-content" style="background-color: #121212; border-radius: 10px; padding: 20px; max-width: 800px; margin: 50px auto; max-height: 80vh; overflow-y: auto;">
+                <div id="file-editor-modal" class="modal" style="display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(8, 10, 12, 0.7); padding: 20px;">
+                    <div class="modal-content" style="background-color: var(--bg-elev); border: 1px solid var(--border); border-radius: 14px; padding: 20px; max-width: 800px; margin: 50px auto; max-height: 80vh; overflow-y: auto;">
                         <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                            <h3 id="editor-title" style="margin: 0;color: #1b73e8;">文件编辑器</h3>
-                            <button id="close-editor" style="background: none; border: none; color: white; font-size: 20px; cursor: pointer;">×</button>
+                            <h3 id="editor-title" style="margin: 0; color: var(--text);">文件编辑器</h3>
+                            <button id="close-editor" style="background: none; border: none; color: var(--text); font-size: 20px; cursor: pointer; box-shadow: none;">×</button>
                         </div>
-                        <textarea id="file-content" style="width: 100%; height: 300px; padding: 10px; border: 1px solid #333; border-radius: 6px; background-color: rgba(255, 255, 255, 0.1); color: white; font-size: 14px; resize: vertical; font-family: monospace;"></textarea>
+                        <textarea id="file-content" style="width: 100%; height: 300px; padding: 10px; border: 1px solid var(--border); border-radius: 10px; background-color: var(--panel); color: var(--text); font-size: 14px; resize: vertical; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, \"Liberation Mono\", monospace;"></textarea>
                         <div style="margin: 15px 0; display: flex; gap: 10px; justify-content: flex-end;">
-                            <button id="save-file-btn" style="padding: 10px 20px; background-color: #1b73e8; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px;">
+                            <button id="save-file-btn" style="padding: 10px 20px; margin: 0;">
                                 保存
                             </button>
-                            <button id="cancel-edit-btn" style="padding: 10px 20px; background-color: #666; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px;">
+                            <button id="cancel-edit-btn" style="padding: 10px 20px; margin: 0; background: var(--panel-strong); color: var(--text); border: 1px solid var(--border); box-shadow: none;">
                                 取消
                             </button>
                         </div>
@@ -1273,15 +1514,15 @@ async def handle_index(request):
                 </div>
                 
                 <!-- Confirmation Modal -->
-                <div id="confirm-modal" class="modal" style="display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.7); padding: 20px;">
-                    <div class="modal-content" style="background-color: #121212; border-radius: 10px; padding: 20px; max-width: 400px; margin: 100px auto;">
-                        <h3 style="margin: 0 0 15px 0; color: white;">确认操作</h3>
-                        <p id="confirm-message" style="color: white; margin: 0 0 20px 0;"></p>
+                <div id="confirm-modal" class="modal" style="display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(8, 10, 12, 0.7); padding: 20px;">
+                    <div class="modal-content" style="background-color: var(--bg-elev); border: 1px solid var(--border); border-radius: 14px; padding: 20px; max-width: 400px; margin: 100px auto;">
+                        <h3 style="margin: 0 0 15px 0; color: var(--text);">确认操作</h3>
+                        <p id="confirm-message" style="color: var(--muted); margin: 0 0 20px 0;"></p>
                         <div style="display: flex; gap: 10px; justify-content: flex-end;">
-                            <button id="confirm-yes" style="padding: 10px 20px; background-color: #1b73e8; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px;">
+                            <button id="confirm-yes" style="padding: 10px 20px; margin: 0;">
                                 确认
                             </button>
-                            <button id="confirm-no" style="padding: 10px 20px; background-color: #666; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px;">
+                            <button id="confirm-no" style="padding: 10px 20px; margin: 0; background: var(--panel-strong); color: var(--text); border: 1px solid var(--border); box-shadow: none;">
                                 取消
                             </button>
                         </div>
@@ -1289,15 +1530,15 @@ async def handle_index(request):
                 </div>
                 
                 <!-- Input Modal for New Files/Folders -->
-                <div id="input-modal" class="modal" style="display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.7); padding: 20px;">
-                    <div class="modal-content" style="background-color: #121212; border-radius: 10px; padding: 20px; max-width: 400px; margin: 100px auto;">
-                        <h3 id="input-title" style="margin: 0 0 15px 0; color: white;"></h3>
-                        <input type="text" id="input-field" style="width: 100%; padding: 10px; border: 1px solid #333; border-radius: 6px; background-color: rgba(255, 255, 255, 0.1); color: white; font-size: 14px; margin-bottom: 15px;">
+                <div id="input-modal" class="modal" style="display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(8, 10, 12, 0.7); padding: 20px;">
+                    <div class="modal-content" style="background-color: var(--bg-elev); border: 1px solid var(--border); border-radius: 14px; padding: 20px; max-width: 400px; margin: 100px auto;">
+                        <h3 id="input-title" style="margin: 0 0 15px 0; color: var(--text);"></h3>
+                        <input type="text" id="input-field" style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 10px; background-color: var(--panel); color: var(--text); font-size: 14px; margin-bottom: 15px;">
                         <div style="display: flex; gap: 10px; justify-content: flex-end;">
-                            <button id="input-ok" style="padding: 10px 20px; background-color: #1b73e8; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px;">
+                            <button id="input-ok" style="padding: 10px 20px; margin: 0;">
                                 确认
                             </button>
-                            <button id="input-cancel" style="padding: 10px 20px; background-color: #666; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px;">
+                            <button id="input-cancel" style="padding: 10px 20px; margin: 0; background: var(--panel-strong); color: var(--text); border: 1px solid var(--border); box-shadow: none;">
                                 取消
                             </button>
                         </div>
@@ -1329,10 +1570,19 @@ async def handle_index(request):
                         if (targetTab === 'file-manager') {
                             // Check if fileManagerList exists before calling renderFileList
                             if (typeof renderFileList === 'function') {
+                                resizeFileManagerPanel();
+                                updateSdcardButton();
                                 renderFileList(currentPath);
                             }
                         }
                     });
+                });
+
+                window.addEventListener('resize', () => {
+                    const panel = document.getElementById('file-manager');
+                    if (panel && panel.classList.contains('active')) {
+                        resizeFileManagerPanel();
+                    }
                 });
             
             // 文件上传功能
@@ -1469,7 +1719,7 @@ async def handle_index(request):
                     } else if (status === 'error') {
                         progressFill.style.background = 'linear-gradient(90deg, #ea4335 0%, #ff6b6b 100%)';
                     } else {
-                        progressFill.style.background = 'linear-gradient(90deg, #1b73e8 0%, #3a86ff 100%)';
+                        progressFill.style.background = 'linear-gradient(90deg, var(--accent) 0%, #5fa6ff 100%)';
                     }
                 }
                 
@@ -1655,6 +1905,8 @@ async def handle_index(request):
             const newFileBtn = document.getElementById('new-file-btn');
             const newDirBtn = document.getElementById('new-dir-btn');
             const deleteBtn = document.getElementById('delete-btn');
+            const sdcardBtn = document.getElementById('sdcard-btn');
+            let sdcardPath = '';
             
             // Modal Elements
             const fileEditorModal = document.getElementById('file-editor-modal');
@@ -1674,16 +1926,24 @@ async def handle_index(request):
             const inputField = document.getElementById('input-field');
             const inputOk = document.getElementById('input-ok');
             const inputCancel = document.getElementById('input-cancel');
+
+            if (sdcardBtn) {
+                sdcardBtn.addEventListener('click', () => {
+                    if (sdcardPath) {
+                        navigateTo(sdcardPath);
+                    }
+                });
+            }
             
             // Context Menu
             const contextMenu = document.createElement('div');
             contextMenu.style.cssText = `
                 position: fixed;
-                background-color: #121212;
-                border: 1px solid #333;
-                border-radius: 6px;
+                background-color: var(--bg-elev);
+                border: 1px solid var(--border);
+                border-radius: 10px;
                 padding: 5px 0;
-                box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+                box-shadow: var(--shadow);
                 z-index: 10000;
                 display: none;
                 min-width: 150px;
@@ -1707,11 +1967,11 @@ async def handle_index(request):
                     padding: 8px 12px;
                     cursor: pointer;
                     font-size: 14px;
-                    color: white;
+                    color: var(--text);
                     transition: background-color 0.2s;
                 `;
                 menuItem.addEventListener('mouseenter', () => {
-                    menuItem.style.backgroundColor = 'rgba(27, 115, 232, 0.2)';
+                    menuItem.style.backgroundColor = 'rgba(77, 182, 172, 0.2)';
                 });
                 menuItem.addEventListener('mouseleave', () => {
                     menuItem.style.backgroundColor = 'transparent';
@@ -1961,6 +2221,38 @@ async def handle_index(request):
                     breadcrumb.appendChild(item);
                 }
             }
+
+            // Update SD card button visibility and path
+            async function updateSdcardButton() {
+                if (!sdcardBtn) return;
+                sdcardBtn.style.display = 'none';
+                sdcardBtn.disabled = true;
+                sdcardPath = '';
+                
+                try {
+                    const response = await fetch('/api/system/sdcard');
+                    if (!response.ok) return;
+                    const data = await response.json();
+                    
+                    if (data.status === 'success' && data.mounted && data.path) {
+                        sdcardPath = data.path;
+                        sdcardBtn.style.display = 'inline-block';
+                        sdcardBtn.disabled = false;
+                    }
+                } catch (error) {
+                    console.error('检测内存卡失败:', error);
+                }
+            }
+
+            function resizeFileManagerPanel() {
+                const panel = document.getElementById('file-manager');
+                if (!panel) return;
+                const rect = panel.getBoundingClientRect();
+                const available = window.innerHeight - rect.top - 20;
+                if (available > 200) {
+                    panel.style.height = `${available}px`;
+                }
+            }
             
             // Format file size
             function formatSize(bytes) {
@@ -2055,26 +2347,31 @@ async def handle_index(request):
                             fileItem.dataset.path = file.path;
                             fileItem.dataset.isDir = file.is_dir;
                             
-                            fileItem.style.border = '1px solid #333';
-                            fileItem.style.borderRadius = '6px';
+                            fileItem.style.border = '1px solid var(--border)';
+                            fileItem.style.borderRadius = '10px';
                             fileItem.style.padding = '10px';
                             fileItem.style.margin = '0';
                             fileItem.style.cursor = 'pointer';
                             fileItem.style.transition = 'all 0.2s ease';
+                            fileItem.style.backgroundColor = 'var(--panel)';
                             fileItem.style.display = 'flex';
                             fileItem.style.flexDirection = 'column';
                             fileItem.style.alignItems = 'center';
                             fileItem.style.minHeight = '100px';
-                            fileItem.style.justifyContent = 'center';
-                            fileItem.style.gap = '5px';
+                                fileItem.style.justifyContent = 'center';
+                                fileItem.style.gap = '5px';
+                                fileItem.style.flex = '1 1 120px';
+                                fileItem.style.maxWidth = '200px';
+                                fileItem.style.minWidth = '0';
+                                fileItem.style.boxSizing = 'border-box';
                             
                             // 点击事件：切换选中状态
                             fileItem.addEventListener('click', () => {
                                 if (fileItem.classList.contains('selected')) {
                                     // 取消选中
                                     fileItem.classList.remove('selected');
-                                    fileItem.style.backgroundColor = '';
-                                    fileItem.style.borderColor = '#333';
+                                    fileItem.style.backgroundColor = 'var(--panel)';
+                                    fileItem.style.borderColor = 'var(--border)';
                                     const index = selectedFileManagerFiles.indexOf(file.path);
                                     if (index > -1) {
                                         selectedFileManagerFiles.splice(index, 1);
@@ -2083,13 +2380,13 @@ async def handle_index(request):
                                     // 取消其他选中项
                                     document.querySelectorAll('.file-item.selected').forEach(item => {
                                         item.classList.remove('selected');
-                                        item.style.backgroundColor = '';
-                                        item.style.borderColor = '#333';
+                                        item.style.backgroundColor = 'var(--panel)';
+                                        item.style.borderColor = 'var(--border)';
                                     });
                                     // 选中当前文件
                                     fileItem.classList.add('selected');
-                                    fileItem.style.backgroundColor = 'rgba(27, 115, 232, 0.3)';
-                                    fileItem.style.borderColor = '#1b73e8';
+                                    fileItem.style.backgroundColor = 'var(--accent-soft)';
+                                    fileItem.style.borderColor = 'var(--accent)';
                                     selectedFileManagerFiles = [file.path];
                                 }
                             });
@@ -2108,12 +2405,12 @@ async def handle_index(request):
                                 // 自动选中当前文件
                                 document.querySelectorAll('.file-item.selected').forEach(item => {
                                     item.classList.remove('selected');
-                                    item.style.backgroundColor = '';
-                                    item.style.borderColor = '#333';
+                                    item.style.backgroundColor = 'var(--panel)';
+                                    item.style.borderColor = 'var(--border)';
                                 });
                                 fileItem.classList.add('selected');
-                                fileItem.style.backgroundColor = 'rgba(27, 115, 232, 0.3)';
-                                fileItem.style.borderColor = '#1b73e8';
+                                fileItem.style.backgroundColor = 'var(--accent-soft)';
+                                fileItem.style.borderColor = 'var(--accent)';
                                 selectedFileManagerFiles = [file.path];
                                 showContextMenu(e, file.path);
                             });
@@ -2125,17 +2422,22 @@ async def handle_index(request):
                             
                             // File Name
                             const fileName = document.createElement('div');
+                            fileName.className = 'file-name';
                             fileName.textContent = file.name;
                             fileName.style.fontSize = '12px';
                             fileName.style.textAlign = 'center';
                             fileName.style.overflow = 'hidden';
                             fileName.style.textOverflow = 'ellipsis';
                             fileName.style.width = '100%';
+                            fileName.style.color = 'var(--text)';
+                            fileName.style.whiteSpace = 'nowrap';
+                            fileName.style.maxWidth = '100%';
+                            fileName.style.minWidth = '0';
                             
                             // File Details
                             const fileDetails = document.createElement('div');
                             fileDetails.style.fontSize = '10px';
-                            fileDetails.style.color = '#888';
+                            fileDetails.style.color = 'var(--muted)';
                             fileDetails.style.textAlign = 'center';
                             
                             if (file.is_dir) {
@@ -2151,15 +2453,15 @@ async def handle_index(request):
                             // 鼠标悬停效果（仅当未选中时）
                             fileItem.addEventListener('mouseenter', () => {
                                 if (!fileItem.classList.contains('selected')) {
-                                    fileItem.style.backgroundColor = 'rgba(27, 115, 232, 0.2)';
-                                    fileItem.style.borderColor = '#1b73e8';
+                                    fileItem.style.backgroundColor = 'rgba(77, 182, 172, 0.12)';
+                                    fileItem.style.borderColor = 'rgba(77, 182, 172, 0.55)';
                                 }
                             });
                             
                             fileItem.addEventListener('mouseleave', () => {
                                 if (!fileItem.classList.contains('selected')) {
-                                    fileItem.style.backgroundColor = '';
-                                    fileItem.style.borderColor = '#333';
+                                    fileItem.style.backgroundColor = 'var(--panel)';
+                                    fileItem.style.borderColor = 'var(--border)';
                                 }
                             });
                             
@@ -2399,6 +2701,7 @@ async def handle_index(request):
             });
             
             refreshBtn.addEventListener('click', () => {
+                updateSdcardButton();
                 renderFileList(currentPath);
             });
             

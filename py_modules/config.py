@@ -65,7 +65,7 @@ SWITCH_FILE_PATH = os.path.join(DECKY_SEND_DIR, "decky-sendswitch.txt")
 DEFAULT_SERVER_HOST = "0.0.0.0"
 
 # Main server port
-DEFAULT_SERVER_PORT = 8000
+DEFAULT_SERVER_PORT = 59271
 
 # =============================================================================
 # Timeout Configuration
