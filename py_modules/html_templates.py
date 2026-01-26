@@ -428,6 +428,10 @@ def get_file_manager_html():
 
                 const contextMenu = document.getElementById('context-menu');
                 const newMenu = document.getElementById('new-menu');
+
+                const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+                    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+                let suppressNextClick = false;
                 
                 // Modal Elements
                 const fileEditorModal = document.getElementById('file-editor-modal');
@@ -501,16 +505,77 @@ def get_file_manager_html():
                 
                 // Context Menu Functions
                 let copiedPath = null; // Store copied file/folder path
+
+                function bindLongPressContextMenu(element, path, beforeShow) {
+                    if (!isIOS) {
+                        return;
+                    }
+
+                    let pressTimer = null;
+                    let startX = 0;
+                    let startY = 0;
+                    let lastX = 0;
+                    let lastY = 0;
+                    const longPressMs = 550;
+                    const moveTolerance = 10;
+
+                    const clearPressTimer = () => {
+                        if (pressTimer) {
+                            clearTimeout(pressTimer);
+                            pressTimer = null;
+                        }
+                    };
+
+                    element.addEventListener('touchstart', (e) => {
+                        if (!e.touches || e.touches.length !== 1) {
+                            return;
+                        }
+                        const touch = e.touches[0];
+                        startX = touch.clientX;
+                        startY = touch.clientY;
+                        lastX = startX;
+                        lastY = startY;
+                        clearPressTimer();
+                        pressTimer = setTimeout(() => {
+                            pressTimer = null;
+                            suppressNextClick = true;
+                            if (beforeShow) {
+                                beforeShow();
+                            }
+                            showContextMenu({ clientX: lastX, clientY: lastY, preventDefault: () => {} }, path);
+                        }, longPressMs);
+                    }, { passive: true });
+
+                    element.addEventListener('touchmove', (e) => {
+                        if (!pressTimer || !e.touches || e.touches.length !== 1) {
+                            return;
+                        }
+                        const touch = e.touches[0];
+                        lastX = touch.clientX;
+                        lastY = touch.clientY;
+                        if (Math.abs(lastX - startX) > moveTolerance || Math.abs(lastY - startY) > moveTolerance) {
+                            clearPressTimer();
+                        }
+                    }, { passive: true });
+
+                    element.addEventListener('touchend', clearPressTimer);
+                    element.addEventListener('touchcancel', clearPressTimer);
+                }
                 
                 function showContextMenu(e, path) {
-                    e.preventDefault();
+                    if (e && e.preventDefault) {
+                        e.preventDefault();
+                    }
                     contextMenuPath = path;
                     contextMenu.style.display = 'block';
                     
                     const padding = 8;
                     const menuRect = contextMenu.getBoundingClientRect();
-                    let x = e.clientX;
-                    let y = e.clientY;
+                    const point = (e && e.touches && e.touches[0]) ||
+                        (e && e.changedTouches && e.changedTouches[0]) ||
+                        e || { clientX: 0, clientY: 0 };
+                    let x = point.clientX;
+                    let y = point.clientY;
                     const maxX = window.innerWidth - menuRect.width - padding;
                     const maxY = window.innerHeight - menuRect.height - padding;
                     if (maxX < padding) {
@@ -732,7 +797,12 @@ def get_file_manager_html():
                 }
                 
                 // Hide menus when clicking elsewhere
-                document.addEventListener('click', () => {
+                document.addEventListener('click', (e) => {
+                    if (suppressNextClick && e.target.closest('.file-item')) {
+                        suppressNextClick = false;
+                        return;
+                    }
+                    suppressNextClick = false;
                     hideContextMenu();
                     hideNewMenu();
                 });
@@ -969,7 +1039,13 @@ def get_file_manager_html():
                                 fileItem.dataset.path = file.path;
                                 fileItem.dataset.isDir = file.is_dir;
                                 
-                                fileItem.addEventListener('click', () => {
+                                fileItem.addEventListener('click', (e) => {
+                                    if (suppressNextClick) {
+                                        suppressNextClick = false;
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        return;
+                                    }
                                     // 切换文件选中状态
                                     if (fileItem.classList.contains('selected')) {
                                         // 取消选中
@@ -1002,6 +1078,8 @@ def get_file_manager_html():
                                     e.preventDefault();
                                     showContextMenu(e, file.path);
                                 });
+
+                                bindLongPressContextMenu(fileItem, file.path);
                                 
                                 // File Icon
                                 const icon = document.createElement('div');
@@ -1723,7 +1801,7 @@ async def handle_index(request):
             <div id="file" class="tab-panel active">
                 <div class="upload-area" id="upload-area">
                     <p>点击或拖拽文件到此处</p>
-                    <input type="file" id="file-input" multiple accept="*/*" capture="filesystem">
+                    <input type="file" id="file-input" multiple accept="*/*">
                 </div>
                 
                 <div class="file-list" id="file-list"></div>
@@ -1853,30 +1931,81 @@ async def handle_index(request):
                 const tabButtons = document.querySelectorAll('.tab-button');
                 const tabPanels = document.querySelectorAll('.tab-panel');
                 
+                const activateTab = (targetTab) => {
+                    if (!targetTab) return;
+                    
+                    // Remove active class from all buttons and panels
+                    tabButtons.forEach(btn => btn.classList.remove('active'));
+                    tabPanels.forEach(panel => panel.classList.remove('active'));
+                    
+                    // Add active class to corresponding button and panel
+                    const targetButton = Array.from(tabButtons).find(btn => btn.getAttribute('data-tab') === targetTab);
+                    if (targetButton) {
+                        targetButton.classList.add('active');
+                    }
+                    const targetPanel = document.getElementById(targetTab);
+                    if (targetPanel) {
+                        targetPanel.classList.add('active');
+                    }
+                    
+                    // Render file list when file manager tab is activated
+                    if (targetTab === 'file-manager') {
+                        // Check if fileManagerList exists before calling renderFileList
+                        if (typeof renderFileList === 'function') {
+                            resizeFileManagerPanel();
+                            updateSdcardButton();
+                            applyFileManagerLayout();
+                            renderFileList(currentPath);
+                        }
+                    }
+                };
+                
                 tabButtons.forEach(button => {
                     button.addEventListener('click', () => {
-                        const targetTab = button.getAttribute('data-tab');
-                        
-                        // Remove active class from all buttons and panels
-                        tabButtons.forEach(btn => btn.classList.remove('active'));
-                        tabPanels.forEach(panel => panel.classList.remove('active'));
-                        
-                        // Add active class to clicked button and corresponding panel
-                        button.classList.add('active');
-                        document.getElementById(targetTab).classList.add('active');
-                        
-                        // Render file list when file manager tab is activated
-                        if (targetTab === 'file-manager') {
-                            // Check if fileManagerList exists before calling renderFileList
-                            if (typeof renderFileList === 'function') {
-                                resizeFileManagerPanel();
-                                updateSdcardButton();
-                                applyFileManagerLayout();
-                                renderFileList(currentPath);
-                            }
-                        }
+                        activateTab(button.getAttribute('data-tab'));
                     });
                 });
+
+                const hasFileDrag = (event) => {
+                    const dt = event.dataTransfer;
+                    if (!dt) return false;
+                    
+                    if (dt.types) {
+                        const types = Array.from(dt.types);
+                        if (types.includes('Files') ||
+                            types.includes('application/x-moz-file') ||
+                            types.includes('application/x-moz-file-promise')) {
+                            return true;
+                        }
+                    }
+                    
+                    if (dt.items && dt.items.length) {
+                        for (const item of dt.items) {
+                            if (item && item.kind === 'file') {
+                                return true;
+                            }
+                        }
+                    }
+                    
+                    if (dt.files && dt.files.length) {
+                        return true;
+                    }
+                    
+                    return false;
+                };
+
+                const handleFileDrag = (event) => {
+                    if (hasFileDrag(event)) {
+                        activateTab('file');
+                    }
+                };
+
+                document.addEventListener('dragenter', handleFileDrag, true);
+                document.addEventListener('dragover', handleFileDrag, true);
+                document.addEventListener('drop', handleFileDrag, true);
+                window.addEventListener('dragenter', handleFileDrag, true);
+                window.addEventListener('dragover', handleFileDrag, true);
+                window.addEventListener('drop', handleFileDrag, true);
 
                 window.addEventListener('resize', () => {
                     const panel = document.getElementById('file-manager');
@@ -2195,6 +2324,10 @@ async def handle_index(request):
             let selectedFileManagerFiles = [];
             let editingFile = null;
             let contextMenuPath = '';
+
+            const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+                (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+            let suppressNextClick = false;
             
             // DOM Elements
             const breadcrumb = document.getElementById('breadcrumb');
@@ -2333,16 +2466,77 @@ async def handle_index(request):
             
             // Context Menu Functions
             let copiedPath = null; // Store copied file/folder path
+
+            function bindLongPressContextMenu(element, path, beforeShow) {
+                if (!isIOS) {
+                    return;
+                }
+
+                let pressTimer = null;
+                let startX = 0;
+                let startY = 0;
+                let lastX = 0;
+                let lastY = 0;
+                const longPressMs = 550;
+                const moveTolerance = 10;
+
+                const clearPressTimer = () => {
+                    if (pressTimer) {
+                        clearTimeout(pressTimer);
+                        pressTimer = null;
+                    }
+                };
+
+                element.addEventListener('touchstart', (e) => {
+                    if (!e.touches || e.touches.length !== 1) {
+                        return;
+                    }
+                    const touch = e.touches[0];
+                    startX = touch.clientX;
+                    startY = touch.clientY;
+                    lastX = startX;
+                    lastY = startY;
+                    clearPressTimer();
+                    pressTimer = setTimeout(() => {
+                        pressTimer = null;
+                        suppressNextClick = true;
+                        if (beforeShow) {
+                            beforeShow();
+                        }
+                        showContextMenu({ clientX: lastX, clientY: lastY, preventDefault: () => {} }, path);
+                    }, longPressMs);
+                }, { passive: true });
+
+                element.addEventListener('touchmove', (e) => {
+                    if (!pressTimer || !e.touches || e.touches.length !== 1) {
+                        return;
+                    }
+                    const touch = e.touches[0];
+                    lastX = touch.clientX;
+                    lastY = touch.clientY;
+                    if (Math.abs(lastX - startX) > moveTolerance || Math.abs(lastY - startY) > moveTolerance) {
+                        clearPressTimer();
+                    }
+                }, { passive: true });
+
+                element.addEventListener('touchend', clearPressTimer);
+                element.addEventListener('touchcancel', clearPressTimer);
+            }
             
             function showContextMenu(e, path) {
-                e.preventDefault();
+                if (e && e.preventDefault) {
+                    e.preventDefault();
+                }
                 contextMenuPath = path;
                 contextMenu.style.display = 'block';
                 
                 const padding = 8;
                 const menuRect = contextMenu.getBoundingClientRect();
-                let x = e.clientX;
-                let y = e.clientY;
+                const point = (e && e.touches && e.touches[0]) ||
+                    (e && e.changedTouches && e.changedTouches[0]) ||
+                    e || { clientX: 0, clientY: 0 };
+                let x = point.clientX;
+                let y = point.clientY;
                 const maxX = window.innerWidth - menuRect.width - padding;
                 const maxY = window.innerHeight - menuRect.height - padding;
                 if (maxX < padding) {
@@ -2564,7 +2758,12 @@ async def handle_index(request):
             }
             
             // Hide menus when clicking elsewhere
-            document.addEventListener('click', () => {
+            document.addEventListener('click', (e) => {
+                if (suppressNextClick && e.target.closest('.file-item')) {
+                    suppressNextClick = false;
+                    return;
+                }
+                suppressNextClick = false;
                 hideContextMenu();
                 hideNewMenu();
             });
@@ -2838,7 +3037,13 @@ async def handle_index(request):
                                 fileItem.style.boxSizing = 'border-box';
                             
                             // 点击事件：切换选中状态
-                            fileItem.addEventListener('click', () => {
+                            fileItem.addEventListener('click', (e) => {
+                                if (suppressNextClick) {
+                                    suppressNextClick = false;
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    return;
+                                }
                                 if (fileItem.classList.contains('selected')) {
                                     // 取消选中
                                     fileItem.classList.remove('selected');
@@ -2885,6 +3090,18 @@ async def handle_index(request):
                                 fileItem.style.borderColor = 'var(--accent)';
                                 selectedFileManagerFiles = [file.path];
                                 showContextMenu(e, file.path);
+                            });
+
+                            bindLongPressContextMenu(fileItem, file.path, () => {
+                                document.querySelectorAll('.file-item.selected').forEach(item => {
+                                    item.classList.remove('selected');
+                                    item.style.backgroundColor = 'var(--panel)';
+                                    item.style.borderColor = 'var(--border)';
+                                });
+                                fileItem.classList.add('selected');
+                                fileItem.style.backgroundColor = 'var(--accent-soft)';
+                                fileItem.style.borderColor = 'var(--accent)';
+                                selectedFileManagerFiles = [file.path];
                             });
                             
                             // File Icon
@@ -3237,7 +3454,11 @@ async def handle_upload(request, plugin):
         field = await reader.next()
         
         if field.name == 'file' and field.filename:
-            filename = field.filename
+            raw_filename = field.filename.replace('\x00', '')
+            safe_filename = os.path.basename(raw_filename.replace('\\', '/')).strip()
+            if safe_filename in ("", ".", ".."):
+                safe_filename = f"upload_{int(time.time())}"
+            filename = safe_filename
             file_path = os.path.join(plugin.downloads_dir, filename)
             
             # Get content length from header, but note this includes multipart overhead
@@ -3404,6 +3625,14 @@ async def handle_text_upload(request, plugin):
         # Emit text received event to frontend with the saved text
         # NOTE: Wrap in list for frontend destructuring
         await decky.emit("text_received", [text])
+
+        # Auto-copy text to clipboard if enabled
+        if getattr(plugin, "auto_copy_text_enabled", False):
+            try:
+                if not utils.set_clipboard_text(text):
+                    decky.logger.warning("Auto copy text failed: clipboard utility not available")
+            except Exception as copy_error:
+                decky.logger.warning(f"Auto copy text failed: {copy_error}")
         
         # Send notifications (Decky UI + system) so it works even when UI is closed
         notification_title = "文本传输完成"

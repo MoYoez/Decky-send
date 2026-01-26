@@ -598,8 +598,30 @@ async def load_settings(plugin):
         
         # Load server port
         plugin.server_port = settings.get(plugin.SETTING_PORT, config.DEFAULT_SERVER_PORT)
+
+        # Load download directory
+        downloads_dir = settings.get(plugin.SETTING_DOWNLOAD_DIR, config.DOWNLOADS_DIR)
+        if isinstance(downloads_dir, str) and downloads_dir.strip():
+            plugin.downloads_dir = downloads_dir
+        else:
+            plugin.downloads_dir = config.DOWNLOADS_DIR
+
+        # Load auto copy text setting
+        plugin.auto_copy_text_enabled = bool(settings.get(plugin.SETTING_AUTO_COPY_TEXT, False))
+
+        # Ensure downloads directory exists
+        try:
+            os.makedirs(plugin.downloads_dir, exist_ok=True)
+        except Exception as e:
+            config.logger.error(f"Failed to create downloads directory: {e}")
         
-        config.logger.info(f"Loaded settings: running={plugin.server_running}, port={plugin.server_port}")
+        config.logger.info(
+            "Loaded settings: running=%s, port=%s, downloads_dir=%s, auto_copy_text=%s",
+            plugin.server_running,
+            plugin.server_port,
+            plugin.downloads_dir,
+            plugin.auto_copy_text_enabled,
+        )
         
     except Exception as e:
         config.logger.error(f"Failed to load settings: {e}")
@@ -615,7 +637,9 @@ async def save_settings(plugin):
         # Create settings dictionary
         settings = {
             plugin.SETTING_RUNNING: plugin.server_running,
-            plugin.SETTING_PORT: plugin.server_port
+            plugin.SETTING_PORT: plugin.server_port,
+            plugin.SETTING_DOWNLOAD_DIR: plugin.downloads_dir,
+            plugin.SETTING_AUTO_COPY_TEXT: bool(plugin.auto_copy_text_enabled),
         }
         
         # Save settings
@@ -665,6 +689,7 @@ def setup_main_server_routes(app, plugin):
     """
     # Main page (doesn't need plugin)
     app.router.add_get('/', html_templates.handle_index)
+    app.router.add_get('/file-manager', html_templates.handle_file_manager_index)
     
     # Upload endpoints (need plugin for paths)
     app.router.add_post('/upload', lambda request: html_templates.handle_upload(request, plugin))
