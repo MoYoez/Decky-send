@@ -105,4 +105,7 @@ SETTING_RUNNING = "running"
 SETTING_PORT = "port"
 SETTING_DOWNLOAD_DIR = "download_dir"
 SETTING_AUTO_COPY_TEXT = "auto_copy_text"
+<<<<<<< HEAD
 SETTING_PROMPT_UPLOAD_PATH = "prompt_upload_path"
+=======
+>>>>>>> c9a66d846909ec3b3dc33aa08b874198dfeab9b7

@@ -608,7 +608,10 @@ async def load_settings(plugin):
 
         # Load auto copy text setting
         plugin.auto_copy_text_enabled = bool(settings.get(plugin.SETTING_AUTO_COPY_TEXT, False))
+<<<<<<< HEAD
         plugin.prompt_upload_path_enabled = bool(settings.get(plugin.SETTING_PROMPT_UPLOAD_PATH, False))
+=======
+>>>>>>> c9a66d846909ec3b3dc33aa08b874198dfeab9b7
 
         # Ensure downloads directory exists
         try:
@@ -617,12 +620,19 @@ async def load_settings(plugin):
             config.logger.error(f"Failed to create downloads directory: {e}")
         
         config.logger.info(
+<<<<<<< HEAD
             "Loaded settings: running=%s, port=%s, downloads_dir=%s, auto_copy_text=%s, prompt_upload_path=%s",
+=======
+            "Loaded settings: running=%s, port=%s, downloads_dir=%s, auto_copy_text=%s",
+>>>>>>> c9a66d846909ec3b3dc33aa08b874198dfeab9b7
             plugin.server_running,
             plugin.server_port,
             plugin.downloads_dir,
             plugin.auto_copy_text_enabled,
+<<<<<<< HEAD
             plugin.prompt_upload_path_enabled,
+=======
+>>>>>>> c9a66d846909ec3b3dc33aa08b874198dfeab9b7
         )
         
     except Exception as e:
@@ -642,7 +652,10 @@ async def save_settings(plugin):
             plugin.SETTING_PORT: plugin.server_port,
             plugin.SETTING_DOWNLOAD_DIR: plugin.downloads_dir,
             plugin.SETTING_AUTO_COPY_TEXT: bool(plugin.auto_copy_text_enabled),
+<<<<<<< HEAD
             plugin.SETTING_PROMPT_UPLOAD_PATH: bool(plugin.prompt_upload_path_enabled),
+=======
+>>>>>>> c9a66d846909ec3b3dc33aa08b874198dfeab9b7
         }
         
         # Save settings

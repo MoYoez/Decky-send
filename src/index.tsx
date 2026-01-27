@@ -39,8 +39,11 @@ const getDownloadDir = callable<[], { status: string; path?: string; message?: s
 const setDownloadDir = callable<[path: string], { status: string; path?: string; message?: string }>("set_download_dir");
 const getAutoCopyText = callable<[], { status: string; enabled?: boolean; message?: string }>("get_auto_copy_text");
 const setAutoCopyText = callable<[enabled: boolean], { status: string; enabled?: boolean; message?: string }>("set_auto_copy_text");
+<<<<<<< HEAD
 const getPromptUploadPath = callable<[], { status: string; enabled?: boolean; message?: string }>("get_prompt_upload_path");
 const setPromptUploadPath = callable<[enabled: boolean], { status: string; enabled?: boolean; message?: string }>("set_prompt_upload_path");
+=======
+>>>>>>> c9a66d846909ec3b3dc33aa08b874198dfeab9b7
 const setServerPort = callable<[port: number], { status: string; port?: number; message?: string }>("set_server_port");
 
 
@@ -887,7 +890,10 @@ const SettingsPage = () => {
   const [settings, setSettings] = useState<UiSettings>(() => loadUiSettings());
   const [downloadDir, setDownloadDirState] = useState<string>("");
   const [autoCopyEnabled, setAutoCopyEnabled] = useState(false);
+<<<<<<< HEAD
   const [promptUploadPathEnabled, setPromptUploadPathEnabled] = useState(false);
+=======
+>>>>>>> c9a66d846909ec3b3dc33aa08b874198dfeab9b7
   const [portInput, setPortInput] = useState<string>("");
   const [portSaving, setPortSaving] = useState(false);
   const [activeTab, setActiveTab] = useState<string>("ui");
@@ -983,10 +989,13 @@ const SettingsPage = () => {
         if (active && autoCopyResponse.status === "success") {
           setAutoCopyEnabled(Boolean(autoCopyResponse.enabled));
         }
+<<<<<<< HEAD
         const promptPathResponse = await getPromptUploadPath();
         if (active && promptPathResponse.status === "success") {
           setPromptUploadPathEnabled(Boolean(promptPathResponse.enabled));
         }
+=======
+>>>>>>> c9a66d846909ec3b3dc33aa08b874198dfeab9b7
       } catch (error) {
         console.error("Failed to load download directory:", error);
       }
@@ -1017,6 +1026,7 @@ const SettingsPage = () => {
     }
   };
 
+<<<<<<< HEAD
   const handlePromptUploadPathToggle = async (value: boolean) => {
     try {
       const response = await setPromptUploadPath(value);
@@ -1037,6 +1047,8 @@ const SettingsPage = () => {
     }
   };
 
+=======
+>>>>>>> c9a66d846909ec3b3dc33aa08b874198dfeab9b7
   const handlePickDownloadDir = async () => {
     try {
       const startPath = downloadDir || "/home/deck";
@@ -1161,6 +1173,7 @@ const SettingsPage = () => {
           </PanelSection>
           <PanelSection title="文件传输">
             <PanelSectionRow>
+<<<<<<< HEAD
               <ToggleField
                 label="上传前选择路径"
                 description="每次上传前手动选择保存目录"
@@ -1169,6 +1182,8 @@ const SettingsPage = () => {
               />
             </PanelSectionRow>
             <PanelSectionRow>
+=======
+>>>>>>> c9a66d846909ec3b3dc33aa08b874198dfeab9b7
               <div style={{ fontSize: "12px", color: "#9aa0a6", lineHeight: 1.4 }}>
                 当前下载目录：{downloadDir || "未设置"}
               </div>

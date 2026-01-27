@@ -1229,8 +1229,11 @@ const getDownloadDir = callable("get_download_dir");
 const setDownloadDir = callable("set_download_dir");
 const getAutoCopyText = callable("get_auto_copy_text");
 const setAutoCopyText = callable("set_auto_copy_text");
+<<<<<<< HEAD
 const getPromptUploadPath = callable("get_prompt_upload_path");
 const setPromptUploadPath = callable("set_prompt_upload_path");
+=======
+>>>>>>> c9a66d846909ec3b3dc33aa08b874198dfeab9b7
 const setServerPort = callable("set_server_port");
 // =============================================================================
 // Global State Cache (similar to ToMoon pattern)
@@ -1860,7 +1863,10 @@ const SettingsPage = () => {
     const [settings, setSettings] = SP_REACT.useState(() => loadUiSettings());
     const [downloadDir, setDownloadDirState] = SP_REACT.useState("");
     const [autoCopyEnabled, setAutoCopyEnabled] = SP_REACT.useState(false);
+<<<<<<< HEAD
     const [promptUploadPathEnabled, setPromptUploadPathEnabled] = SP_REACT.useState(false);
+=======
+>>>>>>> c9a66d846909ec3b3dc33aa08b874198dfeab9b7
     const [portInput, setPortInput] = SP_REACT.useState("");
     const [portSaving, setPortSaving] = SP_REACT.useState(false);
     const [activeTab, setActiveTab] = SP_REACT.useState("ui");
@@ -1954,10 +1960,13 @@ const SettingsPage = () => {
                 if (active && autoCopyResponse.status === "success") {
                     setAutoCopyEnabled(Boolean(autoCopyResponse.enabled));
                 }
+<<<<<<< HEAD
                 const promptPathResponse = await getPromptUploadPath();
                 if (active && promptPathResponse.status === "success") {
                     setPromptUploadPathEnabled(Boolean(promptPathResponse.enabled));
                 }
+=======
+>>>>>>> c9a66d846909ec3b3dc33aa08b874198dfeab9b7
             }
             catch (error) {
                 console.error("Failed to load download directory:", error);
@@ -1988,6 +1997,7 @@ const SettingsPage = () => {
             });
         }
     };
+<<<<<<< HEAD
     const handlePromptUploadPathToggle = async (value) => {
         try {
             const response = await setPromptUploadPath(value);
@@ -2008,6 +2018,8 @@ const SettingsPage = () => {
             });
         }
     };
+=======
+>>>>>>> c9a66d846909ec3b3dc33aa08b874198dfeab9b7
     const handlePickDownloadDir = async () => {
         try {
             const startPath = downloadDir || "/home/deck";
@@ -2090,7 +2102,11 @@ const SettingsPage = () => {
         {
             id: "transfer",
             title: "传输设置",
+<<<<<<< HEAD
             content: (SP_JSX.jsxs(SP_JSX.Fragment, { children: [SP_JSX.jsx(DFL.PanelSection, { title: "\u6587\u672C\u4F20\u8F93", children: SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(DFL.ToggleField, { label: "\u81EA\u52A8\u590D\u5236\u6587\u672C", description: "\u6536\u5230\u6587\u672C\u540E\u81EA\u52A8\u590D\u5236\u5230\u526A\u8D34\u677F", checked: autoCopyEnabled, onChange: handleAutoCopyToggle }) }) }), SP_JSX.jsxs(DFL.PanelSection, { title: "\u6587\u4EF6\u4F20\u8F93", children: [SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(DFL.ToggleField, { label: "\u4E0A\u4F20\u524D\u9009\u62E9\u8DEF\u5F84", description: "\u6BCF\u6B21\u4E0A\u4F20\u524D\u624B\u52A8\u9009\u62E9\u4FDD\u5B58\u76EE\u5F55", checked: promptUploadPathEnabled, onChange: handlePromptUploadPathToggle }) }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsxs("div", { style: { fontSize: "12px", color: "#9aa0a6", lineHeight: 1.4 }, children: ["\u5F53\u524D\u4E0B\u8F7D\u76EE\u5F55\uFF1A", downloadDir || "未设置"] }) }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(DFL.ButtonItem, { layout: "below", onClick: handlePickDownloadDir, children: "\u9009\u62E9\u4E0B\u8F7D\u76EE\u5F55" }) })] })] }))
+=======
+            content: (SP_JSX.jsxs(SP_JSX.Fragment, { children: [SP_JSX.jsx(DFL.PanelSection, { title: "\u6587\u672C\u4F20\u8F93", children: SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(DFL.ToggleField, { label: "\u81EA\u52A8\u590D\u5236\u6587\u672C", description: "\u6536\u5230\u6587\u672C\u540E\u81EA\u52A8\u590D\u5236\u5230\u526A\u8D34\u677F", checked: autoCopyEnabled, onChange: handleAutoCopyToggle }) }) }), SP_JSX.jsxs(DFL.PanelSection, { title: "\u6587\u4EF6\u4F20\u8F93", children: [SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsxs("div", { style: { fontSize: "12px", color: "#9aa0a6", lineHeight: 1.4 }, children: ["\u5F53\u524D\u4E0B\u8F7D\u76EE\u5F55\uFF1A", downloadDir || "未设置"] }) }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(DFL.ButtonItem, { layout: "below", onClick: handlePickDownloadDir, children: "\u9009\u62E9\u4E0B\u8F7D\u76EE\u5F55" }) })] })] }))
+>>>>>>> c9a66d846909ec3b3dc33aa08b874198dfeab9b7
         },
         {
             id: "port",

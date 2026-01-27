@@ -571,6 +571,10 @@ def get_file_manager_html():
                     });
                     newMenu.appendChild(menuItem);
                 });
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> c9a66d846909ec3b3dc33aa08b874198dfeab9b7
 
                 const PINNED_STORAGE_KEY = 'decky_send_pinned_items';
 
@@ -625,7 +629,11 @@ def get_file_manager_html():
                 function isArchiveFile(name) {
                     if (!name) return false;
                     const lower = name.toLowerCase();
+<<<<<<< HEAD
                     const exts = ['.tar.gz', '.tar.bz2', '.tar.xz', '.tgz', '.tbz', '.tbz2', '.txz', '.tar', '.zip', '.7z', '.rar', '.exe'];
+=======
+                    const exts = ['.tar.gz', '.tar.bz2', '.tar.xz', '.tgz', '.tbz', '.tbz2', '.txz', '.tar', '.zip', '.7z', '.rar'];
+>>>>>>> c9a66d846909ec3b3dc33aa08b874198dfeab9b7
                     return exts.some(ext => lower.endsWith(ext));
                 }
 
@@ -638,6 +646,12 @@ def get_file_manager_html():
                     unpackMenuItem.style.display = canUnpack ? 'block' : 'none';
                 }
                 
+<<<<<<< HEAD
+=======
+=======
+                
+>>>>>>> 59ce7365bd91331c34ba7d6af0b0cd651ee0c00f
+>>>>>>> c9a66d846909ec3b3dc33aa08b874198dfeab9b7
                 // Context Menu Functions
                 let copiedPath = null; // Store copied file/folder path
 
@@ -2462,6 +2476,11 @@ async def handle_index(request):
                 });
             }
             
+<<<<<<< HEAD
+=======
+            let selectedFiles = [];
+            
+>>>>>>> c9a66d846909ec3b3dc33aa08b874198dfeab9b7
             uploadArea.addEventListener('click', () => {
                 // Reset input so selecting the same file triggers change
                 fileInput.value = '';
@@ -2488,8 +2507,11 @@ async def handle_index(request):
                 // Clear value so re-selecting the same file works next time
                 fileInput.value = '';
             });
+<<<<<<< HEAD
 
             refreshUploadOptions();
+=======
+>>>>>>> c9a66d846909ec3b3dc33aa08b874198dfeab9b7
             
             function addFiles(files) {
                 for (let file of files) {
@@ -2941,6 +2963,10 @@ async def handle_index(request):
                 });
                 newMenu.appendChild(menuItem);
             });
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> c9a66d846909ec3b3dc33aa08b874198dfeab9b7
 
             const PINNED_STORAGE_KEY = 'decky_send_pinned_items';
 
@@ -2995,7 +3021,11 @@ async def handle_index(request):
             function isArchiveFile(name) {
                 if (!name) return false;
                 const lower = name.toLowerCase();
+<<<<<<< HEAD
                 const exts = ['.tar.gz', '.tar.bz2', '.tar.xz', '.tgz', '.tbz', '.tbz2', '.txz', '.tar', '.zip', '.7z', '.rar', '.exe'];
+=======
+                const exts = ['.tar.gz', '.tar.bz2', '.tar.xz', '.tgz', '.tbz', '.tbz2', '.txz', '.tar', '.zip', '.7z', '.rar'];
+>>>>>>> c9a66d846909ec3b3dc33aa08b874198dfeab9b7
                 return exts.some(ext => lower.endsWith(ext));
             }
 
@@ -3008,6 +3038,12 @@ async def handle_index(request):
                 unpackMenuItem.style.display = canUnpack ? 'block' : 'none';
             }
             
+<<<<<<< HEAD
+=======
+=======
+            
+>>>>>>> 59ce7365bd91331c34ba7d6af0b0cd651ee0c00f
+>>>>>>> c9a66d846909ec3b3dc33aa08b874198dfeab9b7
             // Context Menu Functions
             let copiedPath = null; // Store copied file/folder path
 
@@ -3261,7 +3297,10 @@ async def handle_index(request):
                     case 'unpack':
                         if (contextMenuPath) {
                             try {
+<<<<<<< HEAD
                                 showUnpackProgress(contextMenuPath.split('/').pop());
+=======
+>>>>>>> c9a66d846909ec3b3dc33aa08b874198dfeab9b7
                                 const response = await fetch('/api/files/unpack', {
                                     method: 'POST',
                                     headers: {
@@ -3271,16 +3310,25 @@ async def handle_index(request):
                                 });
                                 const result = await response.json();
                                 if (result.status === 'success') {
+<<<<<<< HEAD
                                     finishUnpackProgress(true);
                                     alert(result.message || '解压完成');
                                     await renderFileList(currentPath);
                                 } else {
                                     finishUnpackProgress(false);
+=======
+                                    alert(result.message || '解压完成');
+                                    await renderFileList(currentPath);
+                                } else {
+>>>>>>> c9a66d846909ec3b3dc33aa08b874198dfeab9b7
                                     alert('解压失败: ' + (result.message || '未知错误'));
                                 }
                             } catch (error) {
                                 console.error('解压出错:', error);
+<<<<<<< HEAD
                                 finishUnpackProgress(false);
+=======
+>>>>>>> c9a66d846909ec3b3dc33aa08b874198dfeab9b7
                                 alert('解压出错');
                             }
                         }
@@ -3779,6 +3827,10 @@ async def handle_index(request):
                                 selectedFileManagerFiles = [file.path];
                             });
                             
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> c9a66d846909ec3b3dc33aa08b874198dfeab9b7
                             const pinBadge = document.createElement('div');
                             pinBadge.className = 'pin-badge';
                             pinBadge.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="#ffffff" d="M7 10V7a5 5 0 0 1 10 0v3h1a1 1 0 0 1 1 1v9a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-9a1 1 0 0 1 1-1h1zm2 0h6V7a3 3 0 0 0-6 0v3zm3 4a2 2 0 0 0-1 3.732V19a1 1 0 0 0 2 0v-1.268A2 2 0 0 0 12 14z"/></svg>';
@@ -3786,6 +3838,11 @@ async def handle_index(request):
                                 pinBadge.style.display = 'none';
                             }
 
+<<<<<<< HEAD
+=======
+=======
+>>>>>>> 59ce7365bd91331c34ba7d6af0b0cd651ee0c00f
+>>>>>>> c9a66d846909ec3b3dc33aa08b874198dfeab9b7
                             // File Icon
                             const icon = document.createElement('div');
                             icon.className = 'file-icon';
@@ -4145,6 +4202,7 @@ async def handle_upload(request, plugin):
         plugin: Plugin instance to access downloads_dir and text_file_path
     """
     try:
+<<<<<<< HEAD
         # Parse multipart form data
         reader = await request.multipart()
         field = await reader.next()
@@ -4164,10 +4222,19 @@ async def handle_upload(request, plugin):
 
         if file_field and file_field.filename:
             raw_filename = file_field.filename.replace('\x00', '')
+=======
+        # Parse multipart form data
+        reader = await request.multipart()
+        field = await reader.next()
+        
+        if field.name == 'file' and field.filename:
+            raw_filename = field.filename.replace('\x00', '')
+>>>>>>> c9a66d846909ec3b3dc33aa08b874198dfeab9b7
             safe_filename = os.path.basename(raw_filename.replace('\\', '/')).strip()
             if safe_filename in ("", ".", ".."):
                 safe_filename = f"upload_{int(time.time())}"
             filename = safe_filename
+<<<<<<< HEAD
             upload_dir = plugin.downloads_dir
             if dest_path:
                 if "\x00" in dest_path:
@@ -4183,6 +4250,9 @@ async def handle_upload(request, plugin):
                     return web.json_response({"status": "error", "message": "无法创建目标目录"}, status=400)
                 upload_dir = resolved
             file_path = os.path.join(upload_dir, filename)
+=======
+            file_path = os.path.join(plugin.downloads_dir, filename)
+>>>>>>> c9a66d846909ec3b3dc33aa08b874198dfeab9b7
             
             # Get content length from header, but note this includes multipart overhead
             # For more accurate progress, we'll track actual bytes written
