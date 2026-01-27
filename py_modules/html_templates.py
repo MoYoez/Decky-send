@@ -529,6 +529,7 @@ def get_file_manager_html():
                     });
                     newMenu.appendChild(menuItem);
                 });
+<<<<<<< HEAD
 
                 const PINNED_STORAGE_KEY = 'decky_send_pinned_items';
 
@@ -596,6 +597,9 @@ def get_file_manager_html():
                     unpackMenuItem.style.display = canUnpack ? 'block' : 'none';
                 }
                 
+=======
+                
+>>>>>>> 59ce7365bd91331c34ba7d6af0b0cd651ee0c00f
                 // Context Menu Functions
                 let copiedPath = null; // Store copied file/folder path
 
@@ -2624,6 +2628,7 @@ async def handle_index(request):
                 });
                 newMenu.appendChild(menuItem);
             });
+<<<<<<< HEAD
 
             const PINNED_STORAGE_KEY = 'decky_send_pinned_items';
 
@@ -2691,6 +2696,9 @@ async def handle_index(request):
                 unpackMenuItem.style.display = canUnpack ? 'block' : 'none';
             }
             
+=======
+            
+>>>>>>> 59ce7365bd91331c34ba7d6af0b0cd651ee0c00f
             // Context Menu Functions
             let copiedPath = null; // Store copied file/folder path
 
@@ -3410,6 +3418,7 @@ async def handle_index(request):
                                 selectedFileManagerFiles = [file.path];
                             });
                             
+<<<<<<< HEAD
                             const pinBadge = document.createElement('div');
                             pinBadge.className = 'pin-badge';
                             pinBadge.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="#ffffff" d="M7 10V7a5 5 0 0 1 10 0v3h1a1 1 0 0 1 1 1v9a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-9a1 1 0 0 1 1-1h1zm2 0h6V7a3 3 0 0 0-6 0v3zm3 4a2 2 0 0 0-1 3.732V19a1 1 0 0 0 2 0v-1.268A2 2 0 0 0 12 14z"/></svg>';
@@ -3417,6 +3426,8 @@ async def handle_index(request):
                                 pinBadge.style.display = 'none';
                             }
 
+=======
+>>>>>>> 59ce7365bd91331c34ba7d6af0b0cd651ee0c00f
                             // File Icon
                             const icon = document.createElement('div');
                             icon.className = 'file-icon';
