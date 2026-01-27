@@ -153,6 +153,23 @@ def get_file_manager_html():
             }
             .file-grid .file-item {
                 min-width: 0;
+                position: relative;
+            }
+            .file-grid .pin-badge {
+                position: absolute;
+                top: 6px;
+                left: 6px;
+                font-size: 12px;
+                color: #ffffff;
+                background: #000000;
+                padding: 2px 4px;
+                border-radius: 6px;
+                border: 1px solid #ffffff;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                line-height: 1;
+                pointer-events: none;
             }
             .file-grid.list-mode {
                 flex-direction: column;
@@ -428,6 +445,10 @@ def get_file_manager_html():
 
                 const contextMenu = document.getElementById('context-menu');
                 const newMenu = document.getElementById('new-menu');
+
+                const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+                    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+                let suppressNextClick = false;
                 
                 // Modal Elements
                 const fileEditorModal = document.getElementById('file-editor-modal');
@@ -457,10 +478,14 @@ def get_file_manager_html():
                 }
                 
                 // Context Menu Items
+                let pinMenuItem = null;
+                let unpackMenuItem = null;
                 const contextMenuItems = [
                     { text: '打开', action: 'open' },
                     { text: '下载到本地', action: 'download' },
                     { text: '添加到steam', action: 'add-to-steam' },
+                    { text: '解压', action: 'unpack' },
+                    { text: '置顶', action: 'pin' },
                     { text: '复制', action: 'copy' },
                     { text: '删除', action: 'delete' },
                     { text: '重命名', action: 'rename' }
@@ -476,6 +501,12 @@ def get_file_manager_html():
                         hideContextMenu();
                     });
                     contextMenu.appendChild(menuItem);
+                    if (item.action === 'pin') {
+                        pinMenuItem = menuItem;
+                    }
+                    if (item.action === 'unpack') {
+                        unpackMenuItem = menuItem;
+                    }
                 });
 
                 // New Menu Items (for compact screens)
@@ -498,19 +529,148 @@ def get_file_manager_html():
                     });
                     newMenu.appendChild(menuItem);
                 });
+
+                const PINNED_STORAGE_KEY = 'decky_send_pinned_items';
+
+                function loadPinnedMap() {
+                    try {
+                        const raw = localStorage.getItem(PINNED_STORAGE_KEY);
+                        if (!raw) return {};
+                        const parsed = JSON.parse(raw);
+                        return parsed && typeof parsed === 'object' ? parsed : {};
+                    } catch (e) {
+                        console.error('读取置顶信息失败:', e);
+                        return {};
+                    }
+                }
+
+                function savePinnedMap(map) {
+                    try {
+                        localStorage.setItem(PINNED_STORAGE_KEY, JSON.stringify(map));
+                    } catch (e) {
+                        console.error('保存置顶信息失败:', e);
+                    }
+                }
+
+                function getPinnedSet(path) {
+                    const map = loadPinnedMap();
+                    const list = Array.isArray(map[path]) ? map[path] : [];
+                    return new Set(list);
+                }
+
+                function setPinnedSet(path, set) {
+                    const map = loadPinnedMap();
+                    map[path] = Array.from(set);
+                    savePinnedMap(map);
+                }
+
+                function togglePin(path) {
+                    const set = getPinnedSet(currentPath);
+                    if (set.has(path)) {
+                        set.delete(path);
+                    } else {
+                        set.add(path);
+                    }
+                    setPinnedSet(currentPath, set);
+                }
+
+                function updatePinMenuLabel() {
+                    if (!pinMenuItem) return;
+                    const set = getPinnedSet(currentPath);
+                    pinMenuItem.textContent = set.has(contextMenuPath) ? '取消置顶' : '置顶';
+                }
+
+                function isArchiveFile(name) {
+                    if (!name) return false;
+                    const lower = name.toLowerCase();
+                    const exts = ['.tar.gz', '.tar.bz2', '.tar.xz', '.tgz', '.tbz', '.tbz2', '.txz', '.tar', '.zip', '.7z', '.rar'];
+                    return exts.some(ext => lower.endsWith(ext));
+                }
+
+                function updateUnpackMenuVisibility() {
+                    if (!unpackMenuItem) return;
+                    const fileItem = document.querySelector(`[data-path="${contextMenuPath}"]`);
+                    const isDir = fileItem && fileItem.dataset.isDir === 'true';
+                    const filename = contextMenuPath ? contextMenuPath.split('/').pop() : '';
+                    const canUnpack = !isDir && isArchiveFile(filename);
+                    unpackMenuItem.style.display = canUnpack ? 'block' : 'none';
+                }
                 
                 // Context Menu Functions
                 let copiedPath = null; // Store copied file/folder path
+
+                function bindLongPressContextMenu(element, path, beforeShow) {
+                    if (!isIOS) {
+                        return;
+                    }
+
+                    let pressTimer = null;
+                    let startX = 0;
+                    let startY = 0;
+                    let lastX = 0;
+                    let lastY = 0;
+                    const longPressMs = 550;
+                    const moveTolerance = 10;
+
+                    const clearPressTimer = () => {
+                        if (pressTimer) {
+                            clearTimeout(pressTimer);
+                            pressTimer = null;
+                        }
+                    };
+
+                    element.addEventListener('touchstart', (e) => {
+                        if (!e.touches || e.touches.length !== 1) {
+                            return;
+                        }
+                        const touch = e.touches[0];
+                        startX = touch.clientX;
+                        startY = touch.clientY;
+                        lastX = startX;
+                        lastY = startY;
+                        clearPressTimer();
+                        pressTimer = setTimeout(() => {
+                            pressTimer = null;
+                            suppressNextClick = true;
+                            if (beforeShow) {
+                                beforeShow();
+                            }
+                            showContextMenu({ clientX: lastX, clientY: lastY, preventDefault: () => {} }, path);
+                        }, longPressMs);
+                    }, { passive: true });
+
+                    element.addEventListener('touchmove', (e) => {
+                        if (!pressTimer || !e.touches || e.touches.length !== 1) {
+                            return;
+                        }
+                        const touch = e.touches[0];
+                        lastX = touch.clientX;
+                        lastY = touch.clientY;
+                        if (Math.abs(lastX - startX) > moveTolerance || Math.abs(lastY - startY) > moveTolerance) {
+                            clearPressTimer();
+                        }
+                    }, { passive: true });
+
+                    element.addEventListener('touchend', clearPressTimer);
+                    element.addEventListener('touchcancel', clearPressTimer);
+                }
                 
                 function showContextMenu(e, path) {
-                    e.preventDefault();
+                    if (e && e.preventDefault) {
+                        e.preventDefault();
+                    }
                     contextMenuPath = path;
+                    updatePinMenuLabel();
+                    updateUnpackMenuVisibility();
                     contextMenu.style.display = 'block';
                     
                     const padding = 8;
                     const menuRect = contextMenu.getBoundingClientRect();
-                    let x = e.clientX;
-                    let y = e.clientY;
+                    const point = (e && e.touches && e.touches[0]) ||
+                        (e && e.changedTouches && e.changedTouches[0]) ||
+                        e || { clientX: 0, clientY: 0 };
+                    let x = point.clientX;
+                    let y = point.clientY;
                     const maxX = window.innerWidth - menuRect.width - padding;
                     const maxY = window.innerHeight - menuRect.height - padding;
                     if (maxX < padding) {
@@ -732,7 +892,12 @@ def get_file_manager_html():
                 }
                 
                 // Hide menus when clicking elsewhere
-                document.addEventListener('click', () => {
+                document.addEventListener('click', (e) => {
+                    if (suppressNextClick && e.target.closest('.file-item')) {
+                        suppressNextClick = false;
+                        return;
+                    }
+                    suppressNextClick = false;
                     hideContextMenu();
                     hideNewMenu();
                 });
@@ -959,8 +1124,29 @@ def get_file_manager_html():
                         const data = await response.json();
                         if (data.status === 'success') {
                             fileManagerList.innerHTML = '';
+
+                            const pinnedSet = getPinnedSet(data.current_path);
+                            const currentPaths = new Set(data.files.map(item => item.path));
+                            let cleaned = false;
+                            for (const pinnedPath of Array.from(pinnedSet)) {
+                                if (!currentPaths.has(pinnedPath)) {
+                                    pinnedSet.delete(pinnedPath);
+                                    cleaned = true;
+                                }
+                            }
+                            if (cleaned) {
+                                setPinnedSet(data.current_path, pinnedSet);
+                            }
+
+                            const files = data.files.map((file, index) => ({ ...file, __index: index }));
+                            files.sort((a, b) => {
+                                const aPinned = pinnedSet.has(a.path);
+                                const bPinned = pinnedSet.has(b.path);
+                                if (aPinned !== bPinned) return aPinned ? -1 : 1;
+                                return a.__index - b.__index;
+                            });
                             
-                            data.files.forEach(file => {
+                            files.forEach(file => {
                                 const fileItem = document.createElement('div');
                                 fileItem.className = 'file-item';
                                 if (file.is_dir) {
@@ -968,8 +1154,26 @@ def get_file_manager_html():
                                 }
                                 fileItem.dataset.path = file.path;
                                 fileItem.dataset.isDir = file.is_dir;
+                                const isPinned = pinnedSet.has(file.path);
+                                if (isPinned) {
+                                    fileItem.classList.add('pinned');
+                                }
+
+                                const pinBadge = document.createElement('div');
+                                pinBadge.className = 'pin-badge';
+                                pinBadge.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="#ffffff" d="M7 10V7a5 5 0 0 1 10 0v3h1a1 1 0 0 1 1 1v9a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-9a1 1 0 0 1 1-1h1zm2 0h6V7a3 3 0 0 0-6 0v3zm3 4a2 2 0 0 0-1 3.732V19a1 1 0 0 0 2 0v-1.268A2 2 0 0 0 12 14z"/></svg>';
+                                if (!isPinned) {
+                                    pinBadge.style.display = 'none';
+                                }
+                                fileItem.appendChild(pinBadge);
                                 
-                                fileItem.addEventListener('click', () => {
+                                fileItem.addEventListener('click', (e) => {
+                                    if (suppressNextClick) {
+                                        suppressNextClick = false;
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        return;
+                                    }
                                     // 切换文件选中状态
                                     if (fileItem.classList.contains('selected')) {
                                         // 取消选中
@@ -1002,6 +1206,8 @@ def get_file_manager_html():
                                     e.preventDefault();
                                     showContextMenu(e, file.path);
                                 });
+
+                                bindLongPressContextMenu(fileItem, file.path);
                                 
                                 // File Icon
                                 const icon = document.createElement('div');
@@ -1518,6 +1724,23 @@ async def handle_index(request):
             }
             .file-grid .file-item {
                 min-width: 0;
+                position: relative;
+            }
+            .file-grid .pin-badge {
+                position: absolute;
+                top: 6px;
+                left: 6px;
+                font-size: 12px;
+                color: #ffffff;
+                background: #000000;
+                padding: 2px 4px;
+                border-radius: 6px;
+                border: 1px solid #ffffff;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                line-height: 1;
+                pointer-events: none;
             }
             .file-grid .file-name {
                 max-width: 100%;
@@ -1723,7 +1946,7 @@ async def handle_index(request):
             <div id="file" class="tab-panel active">
                 <div class="upload-area" id="upload-area">
                     <p>点击或拖拽文件到此处</p>
-                    <input type="file" id="file-input" multiple accept="*/*" capture="filesystem">
+                    <input type="file" id="file-input" multiple accept="*/*">
                 </div>
                 
                 <div class="file-list" id="file-list"></div>
@@ -1853,30 +2076,81 @@ async def handle_index(request):
                 const tabButtons = document.querySelectorAll('.tab-button');
                 const tabPanels = document.querySelectorAll('.tab-panel');
                 
+                const activateTab = (targetTab) => {
+                    if (!targetTab) return;
+                    
+                    // Remove active class from all buttons and panels
+                    tabButtons.forEach(btn => btn.classList.remove('active'));
+                    tabPanels.forEach(panel => panel.classList.remove('active'));
+                    
+                    // Add active class to corresponding button and panel
+                    const targetButton = Array.from(tabButtons).find(btn => btn.getAttribute('data-tab') === targetTab);
+                    if (targetButton) {
+                        targetButton.classList.add('active');
+                    }
+                    const targetPanel = document.getElementById(targetTab);
+                    if (targetPanel) {
+                        targetPanel.classList.add('active');
+                    }
+                    
+                    // Render file list when file manager tab is activated
+                    if (targetTab === 'file-manager') {
+                        // Check if fileManagerList exists before calling renderFileList
+                        if (typeof renderFileList === 'function') {
+                            resizeFileManagerPanel();
+                            updateSdcardButton();
+                            applyFileManagerLayout();
+                            renderFileList(currentPath);
+                        }
+                    }
+                };
+                
                 tabButtons.forEach(button => {
                     button.addEventListener('click', () => {
-                        const targetTab = button.getAttribute('data-tab');
-                        
-                        // Remove active class from all buttons and panels
-                        tabButtons.forEach(btn => btn.classList.remove('active'));
-                        tabPanels.forEach(panel => panel.classList.remove('active'));
-                        
-                        // Add active class to clicked button and corresponding panel
-                        button.classList.add('active');
-                        document.getElementById(targetTab).classList.add('active');
-                        
-                        // Render file list when file manager tab is activated
-                        if (targetTab === 'file-manager') {
-                            // Check if fileManagerList exists before calling renderFileList
-                            if (typeof renderFileList === 'function') {
-                                resizeFileManagerPanel();
-                                updateSdcardButton();
-                                applyFileManagerLayout();
-                                renderFileList(currentPath);
-                            }
-                        }
+                        activateTab(button.getAttribute('data-tab'));
                     });
                 });
+
+                const hasFileDrag = (event) => {
+                    const dt = event.dataTransfer;
+                    if (!dt) return false;
+                    
+                    if (dt.types) {
+                        const types = Array.from(dt.types);
+                        if (types.includes('Files') ||
+                            types.includes('application/x-moz-file') ||
+                            types.includes('application/x-moz-file-promise')) {
+                            return true;
+                        }
+                    }
+                    
+                    if (dt.items && dt.items.length) {
+                        for (const item of dt.items) {
+                            if (item && item.kind === 'file') {
+                                return true;
+                            }
+                        }
+                    }
+                    
+                    if (dt.files && dt.files.length) {
+                        return true;
+                    }
+                    
+                    return false;
+                };
+
+                const handleFileDrag = (event) => {
+                    if (hasFileDrag(event)) {
+                        activateTab('file');
+                    }
+                };
+
+                document.addEventListener('dragenter', handleFileDrag, true);
+                document.addEventListener('dragover', handleFileDrag, true);
+                document.addEventListener('drop', handleFileDrag, true);
+                window.addEventListener('dragenter', handleFileDrag, true);
+                window.addEventListener('dragover', handleFileDrag, true);
+                window.addEventListener('drop', handleFileDrag, true);
 
                 window.addEventListener('resize', () => {
                     const panel = document.getElementById('file-manager');
@@ -1893,7 +2167,11 @@ async def handle_index(request):
             
             let selectedFiles = [];
             
-            uploadArea.addEventListener('click', () => fileInput.click());
+            uploadArea.addEventListener('click', () => {
+                // Reset input so selecting the same file triggers change
+                fileInput.value = '';
+                fileInput.click();
+            });
             
             uploadArea.addEventListener('dragover', (e) => {
                 e.preventDefault();
@@ -1912,6 +2190,8 @@ async def handle_index(request):
             
             fileInput.addEventListener('change', (e) => {
                 addFiles(e.target.files);
+                // Clear value so re-selecting the same file works next time
+                fileInput.value = '';
             });
             
             function addFiles(files) {
@@ -2195,6 +2475,10 @@ async def handle_index(request):
             let selectedFileManagerFiles = [];
             let editingFile = null;
             let contextMenuPath = '';
+
+            const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+                (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+            let suppressNextClick = false;
             
             // DOM Elements
             const breadcrumb = document.getElementById('breadcrumb');
@@ -2266,10 +2550,14 @@ async def handle_index(request):
             document.body.appendChild(newMenu);
             
             // Context Menu Items
+            let pinMenuItem = null;
+            let unpackMenuItem = null;
             const contextMenuItems = [
                 { text: '打开', action: 'open' },
                 { text: '添加到本地', action: 'download' },
                 { text: '添加到steam', action: 'add-to-steam' },
+                { text: '解压', action: 'unpack' },
+                { text: '置顶', action: 'pin' },
                 { text: '复制', action: 'copy' },
                 { text: '删除', action: 'delete' },
                 { text: '重命名', action: 'rename' }
@@ -2296,6 +2584,12 @@ async def handle_index(request):
                     hideContextMenu();
                 });
                 contextMenu.appendChild(menuItem);
+                if (item.action === 'pin') {
+                    pinMenuItem = menuItem;
+                }
+                if (item.action === 'unpack') {
+                    unpackMenuItem = menuItem;
+                }
             });
 
             // New Menu Items (for compact screens)
@@ -2330,19 +2624,148 @@ async def handle_index(request):
                 });
                 newMenu.appendChild(menuItem);
             });
+
+            const PINNED_STORAGE_KEY = 'decky_send_pinned_items';
+
+            function loadPinnedMap() {
+                try {
+                    const raw = localStorage.getItem(PINNED_STORAGE_KEY);
+                    if (!raw) return {};
+                    const parsed = JSON.parse(raw);
+                    return parsed && typeof parsed === 'object' ? parsed : {};
+                } catch (e) {
+                    console.error('读取置顶信息失败:', e);
+                    return {};
+                }
+            }
+
+            function savePinnedMap(map) {
+                try {
+                    localStorage.setItem(PINNED_STORAGE_KEY, JSON.stringify(map));
+                } catch (e) {
+                    console.error('保存置顶信息失败:', e);
+                }
+            }
+
+            function getPinnedSet(path) {
+                const map = loadPinnedMap();
+                const list = Array.isArray(map[path]) ? map[path] : [];
+                return new Set(list);
+            }
+
+            function setPinnedSet(path, set) {
+                const map = loadPinnedMap();
+                map[path] = Array.from(set);
+                savePinnedMap(map);
+            }
+
+            function togglePin(path) {
+                const set = getPinnedSet(currentPath);
+                if (set.has(path)) {
+                    set.delete(path);
+                } else {
+                    set.add(path);
+                }
+                setPinnedSet(currentPath, set);
+            }
+
+            function updatePinMenuLabel() {
+                if (!pinMenuItem) return;
+                const set = getPinnedSet(currentPath);
+                pinMenuItem.textContent = set.has(contextMenuPath) ? '取消置顶' : '置顶';
+            }
+
+            function isArchiveFile(name) {
+                if (!name) return false;
+                const lower = name.toLowerCase();
+                const exts = ['.tar.gz', '.tar.bz2', '.tar.xz', '.tgz', '.tbz', '.tbz2', '.txz', '.tar', '.zip', '.7z', '.rar'];
+                return exts.some(ext => lower.endsWith(ext));
+            }
+
+            function updateUnpackMenuVisibility() {
+                if (!unpackMenuItem) return;
+                const fileItem = document.querySelector(`[data-path="${contextMenuPath}"]`);
+                const isDir = fileItem && fileItem.dataset.isDir === 'true';
+                const filename = contextMenuPath ? contextMenuPath.split('/').pop() : '';
+                const canUnpack = !isDir && isArchiveFile(filename);
+                unpackMenuItem.style.display = canUnpack ? 'block' : 'none';
+            }
             
             // Context Menu Functions
             let copiedPath = null; // Store copied file/folder path
+
+            function bindLongPressContextMenu(element, path, beforeShow) {
+                if (!isIOS) {
+                    return;
+                }
+
+                let pressTimer = null;
+                let startX = 0;
+                let startY = 0;
+                let lastX = 0;
+                let lastY = 0;
+                const longPressMs = 550;
+                const moveTolerance = 10;
+
+                const clearPressTimer = () => {
+                    if (pressTimer) {
+                        clearTimeout(pressTimer);
+                        pressTimer = null;
+                    }
+                };
+
+                element.addEventListener('touchstart', (e) => {
+                    if (!e.touches || e.touches.length !== 1) {
+                        return;
+                    }
+                    const touch = e.touches[0];
+                    startX = touch.clientX;
+                    startY = touch.clientY;
+                    lastX = startX;
+                    lastY = startY;
+                    clearPressTimer();
+                    pressTimer = setTimeout(() => {
+                        pressTimer = null;
+                        suppressNextClick = true;
+                        if (beforeShow) {
+                            beforeShow();
+                        }
+                        showContextMenu({ clientX: lastX, clientY: lastY, preventDefault: () => {} }, path);
+                    }, longPressMs);
+                }, { passive: true });
+
+                element.addEventListener('touchmove', (e) => {
+                    if (!pressTimer || !e.touches || e.touches.length !== 1) {
+                        return;
+                    }
+                    const touch = e.touches[0];
+                    lastX = touch.clientX;
+                    lastY = touch.clientY;
+                    if (Math.abs(lastX - startX) > moveTolerance || Math.abs(lastY - startY) > moveTolerance) {
+                        clearPressTimer();
+                    }
+                }, { passive: true });
+
+                element.addEventListener('touchend', clearPressTimer);
+                element.addEventListener('touchcancel', clearPressTimer);
+            }
             
             function showContextMenu(e, path) {
-                e.preventDefault();
+                if (e && e.preventDefault) {
+                    e.preventDefault();
+                }
                 contextMenuPath = path;
+                updatePinMenuLabel();
+                updateUnpackMenuVisibility();
                 contextMenu.style.display = 'block';
                 
                 const padding = 8;
                 const menuRect = contextMenu.getBoundingClientRect();
-                let x = e.clientX;
-                let y = e.clientY;
+                const point = (e && e.touches && e.touches[0]) ||
+                    (e && e.changedTouches && e.changedTouches[0]) ||
+                    e || { clientX: 0, clientY: 0 };
+                let x = point.clientX;
+                let y = point.clientY;
                 const maxX = window.innerWidth - menuRect.width - padding;
                 const maxY = window.innerHeight - menuRect.height - padding;
                 if (maxX < padding) {
@@ -2518,6 +2941,58 @@ async def handle_index(request):
                             }
                         }
                         break;
+                    case 'unpack':
+                        if (contextMenuPath) {
+                            try {
+                                const response = await fetch('/api/files/unpack', {
+                                    method: 'POST',
+                                    headers: {
+                                        'Content-Type': 'application/json'
+                                    },
+                                    body: JSON.stringify({ path: contextMenuPath })
+                                });
+                                const result = await response.json();
+                                if (result.status === 'success') {
+                                    alert(result.message || '解压完成');
+                                    await renderFileList(currentPath);
+                                } else {
+                                    alert('解压失败: ' + (result.message || '未知错误'));
+                                }
+                            } catch (error) {
+                                console.error('解压出错:', error);
+                                alert('解压出错');
+                            }
+                        }
+                        break;
+                    case 'unpack':
+                        if (contextMenuPath) {
+                            try {
+                                const response = await fetch('/api/files/unpack', {
+                                    method: 'POST',
+                                    headers: {
+                                        'Content-Type': 'application/json'
+                                    },
+                                    body: JSON.stringify({ path: contextMenuPath })
+                                });
+                                const result = await response.json();
+                                if (result.status === 'success') {
+                                    alert(result.message || '解压完成');
+                                    await renderFileList(currentPath);
+                                } else {
+                                    alert('解压失败: ' + (result.message || '未知错误'));
+                                }
+                            } catch (error) {
+                                console.error('解压出错:', error);
+                                alert('解压出错');
+                            }
+                        }
+                        break;
+                    case 'pin':
+                        if (contextMenuPath) {
+                            togglePin(contextMenuPath);
+                            await renderFileList(currentPath);
+                        }
+                        break;
                     case 'copy':
                         if (contextMenuPath) {
                             await copyPath(contextMenuPath);
@@ -2564,7 +3039,12 @@ async def handle_index(request):
             }
             
             // Hide menus when clicking elsewhere
-            document.addEventListener('click', () => {
+            document.addEventListener('click', (e) => {
+                if (suppressNextClick && e.target.closest('.file-item')) {
+                    suppressNextClick = false;
+                    return;
+                }
+                suppressNextClick = false;
                 hideContextMenu();
                 hideNewMenu();
             });
@@ -2809,14 +3289,39 @@ async def handle_index(request):
                     const data = await response.json();
                     if (data.status === 'success') {
                         fileManagerList.innerHTML = '';
+
+                        const pinnedSet = getPinnedSet(data.current_path);
+                        const currentPaths = new Set(data.files.map(item => item.path));
+                        let cleaned = false;
+                        for (const pinnedPath of Array.from(pinnedSet)) {
+                            if (!currentPaths.has(pinnedPath)) {
+                                pinnedSet.delete(pinnedPath);
+                                cleaned = true;
+                            }
+                        }
+                        if (cleaned) {
+                            setPinnedSet(data.current_path, pinnedSet);
+                        }
+
+                        const files = data.files.map((file, index) => ({ ...file, __index: index }));
+                        files.sort((a, b) => {
+                            const aPinned = pinnedSet.has(a.path);
+                            const bPinned = pinnedSet.has(b.path);
+                            if (aPinned !== bPinned) return aPinned ? -1 : 1;
+                            return a.__index - b.__index;
+                        });
                         
-                        data.files.forEach(file => {
+                        files.forEach(file => {
                             const fileItem = document.createElement('div');
                             fileItem.className = 'file-item';
                             fileItem.dataset.path = file.path;
                             fileItem.dataset.isDir = file.is_dir;
                             if (file.is_dir) {
                                 fileItem.classList.add('is-dir');
+                            }
+                            const isPinned = pinnedSet.has(file.path);
+                            if (isPinned) {
+                                fileItem.classList.add('pinned');
                             }
                             
                             fileItem.style.border = '1px solid var(--border)';
@@ -2838,7 +3343,13 @@ async def handle_index(request):
                                 fileItem.style.boxSizing = 'border-box';
                             
                             // 点击事件：切换选中状态
-                            fileItem.addEventListener('click', () => {
+                            fileItem.addEventListener('click', (e) => {
+                                if (suppressNextClick) {
+                                    suppressNextClick = false;
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    return;
+                                }
                                 if (fileItem.classList.contains('selected')) {
                                     // 取消选中
                                     fileItem.classList.remove('selected');
@@ -2886,7 +3397,26 @@ async def handle_index(request):
                                 selectedFileManagerFiles = [file.path];
                                 showContextMenu(e, file.path);
                             });
+
+                            bindLongPressContextMenu(fileItem, file.path, () => {
+                                document.querySelectorAll('.file-item.selected').forEach(item => {
+                                    item.classList.remove('selected');
+                                    item.style.backgroundColor = 'var(--panel)';
+                                    item.style.borderColor = 'var(--border)';
+                                });
+                                fileItem.classList.add('selected');
+                                fileItem.style.backgroundColor = 'var(--accent-soft)';
+                                fileItem.style.borderColor = 'var(--accent)';
+                                selectedFileManagerFiles = [file.path];
+                            });
                             
+                            const pinBadge = document.createElement('div');
+                            pinBadge.className = 'pin-badge';
+                            pinBadge.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="#ffffff" d="M7 10V7a5 5 0 0 1 10 0v3h1a1 1 0 0 1 1 1v9a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-9a1 1 0 0 1 1-1h1zm2 0h6V7a3 3 0 0 0-6 0v3zm3 4a2 2 0 0 0-1 3.732V19a1 1 0 0 0 2 0v-1.268A2 2 0 0 0 12 14z"/></svg>';
+                            if (!isPinned) {
+                                pinBadge.style.display = 'none';
+                            }
+
                             // File Icon
                             const icon = document.createElement('div');
                             icon.className = 'file-icon';
@@ -2921,6 +3451,7 @@ async def handle_index(request):
                                 fileDetails.innerHTML = `${formatSize(file.size)}<br>${formatDate(file.mtime)}`;
                             }
                             
+                            fileItem.appendChild(pinBadge);
                             fileItem.appendChild(icon);
                             fileItem.appendChild(fileName);
                             fileItem.appendChild(fileDetails);
@@ -3237,7 +3768,11 @@ async def handle_upload(request, plugin):
         field = await reader.next()
         
         if field.name == 'file' and field.filename:
-            filename = field.filename
+            raw_filename = field.filename.replace('\x00', '')
+            safe_filename = os.path.basename(raw_filename.replace('\\', '/')).strip()
+            if safe_filename in ("", ".", ".."):
+                safe_filename = f"upload_{int(time.time())}"
+            filename = safe_filename
             file_path = os.path.join(plugin.downloads_dir, filename)
             
             # Get content length from header, but note this includes multipart overhead
@@ -3404,6 +3939,14 @@ async def handle_text_upload(request, plugin):
         # Emit text received event to frontend with the saved text
         # NOTE: Wrap in list for frontend destructuring
         await decky.emit("text_received", [text])
+
+        # Auto-copy text to clipboard if enabled
+        if getattr(plugin, "auto_copy_text_enabled", False):
+            try:
+                if not utils.set_clipboard_text(text):
+                    decky.logger.warning("Auto copy text failed: clipboard utility not available")
+            except Exception as copy_error:
+                decky.logger.warning(f"Auto copy text failed: {copy_error}")
         
         # Send notifications (Decky UI + system) so it works even when UI is closed
         notification_title = "文本传输完成"
