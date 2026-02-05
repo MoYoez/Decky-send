@@ -251,7 +251,11 @@ async def start_server_async(plugin):
             plugin.site = None
         
         # Create aiohttp application with CORS middleware
-        plugin.app = web.Application(middlewares=[cors_middleware])
+        # Allow very large uploads (default is 1MB in aiohttp)
+        plugin.app = web.Application(
+            middlewares=[cors_middleware],
+            client_max_size=1024 ** 4  # 1 TB limit for large file transfers
+        )
         
         # Setup main server routes
         setup_main_server_routes(plugin.app, plugin)
@@ -598,8 +602,34 @@ async def load_settings(plugin):
         
         # Load server port
         plugin.server_port = settings.get(plugin.SETTING_PORT, config.DEFAULT_SERVER_PORT)
+
+        # Load download directory
+        downloads_dir = settings.get(plugin.SETTING_DOWNLOAD_DIR, config.DOWNLOADS_DIR)
+        if isinstance(downloads_dir, str) and downloads_dir.strip():
+            plugin.downloads_dir = downloads_dir
+        else:
+            plugin.downloads_dir = config.DOWNLOADS_DIR
+
+        # Load auto copy text setting
+        plugin.auto_copy_text_enabled = bool(settings.get(plugin.SETTING_AUTO_COPY_TEXT, False))
+        plugin.prompt_upload_path_enabled = bool(settings.get(plugin.SETTING_PROMPT_UPLOAD_PATH, False))
+        plugin.language_preference = settings.get(plugin.SETTING_LANGUAGE, "auto")
+
+        # Ensure downloads directory exists
+        try:
+            os.makedirs(plugin.downloads_dir, exist_ok=True)
+        except Exception as e:
+            config.logger.error(f"Failed to create downloads directory: {e}")
         
-        config.logger.info(f"Loaded settings: running={plugin.server_running}, port={plugin.server_port}")
+        config.logger.info(
+            "Loaded settings: running=%s, port=%s, downloads_dir=%s, auto_copy_text=%s, prompt_upload_path=%s, language=%s",
+            plugin.server_running,
+            plugin.server_port,
+            plugin.downloads_dir,
+            plugin.auto_copy_text_enabled,
+            plugin.prompt_upload_path_enabled,
+            plugin.language_preference,
+        )
         
     except Exception as e:
         config.logger.error(f"Failed to load settings: {e}")
@@ -615,7 +645,11 @@ async def save_settings(plugin):
         # Create settings dictionary
         settings = {
             plugin.SETTING_RUNNING: plugin.server_running,
-            plugin.SETTING_PORT: plugin.server_port
+            plugin.SETTING_PORT: plugin.server_port,
+            plugin.SETTING_DOWNLOAD_DIR: plugin.downloads_dir,
+            plugin.SETTING_AUTO_COPY_TEXT: bool(plugin.auto_copy_text_enabled),
+            plugin.SETTING_PROMPT_UPLOAD_PATH: bool(plugin.prompt_upload_path_enabled),
+            plugin.SETTING_LANGUAGE: getattr(plugin, "language_preference", "auto"),
         }
         
         # Save settings
@@ -665,10 +699,14 @@ def setup_main_server_routes(app, plugin):
     """
     # Main page (doesn't need plugin)
     app.router.add_get('/', html_templates.handle_index)
+    app.router.add_get('/file-manager', html_templates.handle_file_manager_index)
     
     # Upload endpoints (need plugin for paths)
     app.router.add_post('/upload', lambda request: html_templates.handle_upload(request, plugin))
+    app.router.add_post('/upload-chunk', lambda request: html_templates.handle_upload_chunk(request, plugin))
+    app.router.add_post('/upload-status', lambda request: html_templates.handle_upload_status(request, plugin))
     app.router.add_post('/upload-text', lambda request: html_templates.handle_text_upload(request, plugin))
+    app.router.add_get('/api/settings/upload-options', lambda request: html_templates.handle_upload_options(request, plugin))
     
     # File management routes
     app.router.add_post('/api/files/list', file_operations.get_file_list)
@@ -680,8 +718,10 @@ def setup_main_server_routes(app, plugin):
     app.router.add_post('/api/files/move', file_operations.move_file)
     app.router.add_post('/api/files/delete', file_operations.delete_file)
     app.router.add_get('/api/files/download', file_operations.download_file)
+    app.router.add_post('/api/files/unpack', file_operations.unpack_archive)
     app.router.add_post('/api/files/add-to-steam', file_operations.add_file_to_steam)
     app.router.add_get('/api/system/sdcard', file_operations.get_sdcard_info)
+    app.router.add_get('/api/settings/language', lambda request: html_templates.handle_language_settings(request, plugin))
     
     # Add OPTIONS handler for CORS preflight
     app.router.add_route('OPTIONS', '/{path:.*}', lambda r: web.Response())

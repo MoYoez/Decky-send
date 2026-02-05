@@ -1,5 +1,7 @@
 # decky-send - Steam Deck Local Network File Transfer Assistant
 
+[Chinese](README.md) | [English](README-English.md)
+
 A powerful Decky Loader plugin designed to solve the file transfer and management challenges between Steam Deck and other devices. Manage files and sync text easily via browser without data cables.
 
 ![License](https://img.shields.io/badge/license-GPL--3.0-blue.svg)
@@ -7,21 +9,23 @@ A powerful Decky Loader plugin designed to solve the file transfer and managemen
 
 ## Table of Contents
 
-- [Screenshots](#screenshots)
-- [Features](#features)
-- [Prerequisites](#prerequisites)
-- [Installation](#installation)
-- [Quick Start](#quick-start)
-- [Known Limitations](#known-limitations)
-- [Troubleshooting](#troubleshooting)
-- [License](#license)
-- [Credits](#credits)
+- [decky-send - Steam Deck Local Network File Transfer Assistant](#decky-send---steam-deck-local-network-file-transfer-assistant)
+  - [Table of Contents](#table-of-contents)
+  - [Screenshots](#screenshots)
+  - [Features](#features)
+  - [Prerequisites](#prerequisites)
+  - [Installation](#installation)
+  - [Quick Start](#quick-start)
+  - [Known Limitations](#known-limitations)
+  - [Troubleshooting](#troubleshooting)
+  - [License](#license)
+  - [Credits](#credits)
 
 ## Screenshots
 
 | Plugin Interface | File Transfer |
 | :---: | :---: |
-| ![Plugin Interface](assets/pluginUI.png) | ![File Upload](assets/fileENG.png) |
+| ![Plugin Interface](assets/pluginUIENG.png) | ![File Upload](assets/fileENG.png) |
 | **Text Transfer** | **File Manager** |
 | ![Text Transfer](assets/textENG.png) | ![File Manager](assets/file-managerENG.png) |
 
