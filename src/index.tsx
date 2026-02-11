@@ -36,7 +36,7 @@ import { QRCodeCanvas } from "qrcode.react";
 const startServer = callable<[port: number], { status: string; message: string; url?: string; ip_address?: string; port?: number }>("start_server");
 const stopServer = callable<[], { status: string; message: string }>("stop_server");
 const getServerStatus = callable<[], { running: boolean; port: number; host: string; ip_address?: string }>("get_server_status");
-const getIpAddressFromBackend = callable<[], { status: string; ip_address?: string; message?: string }>("get_ip_address");
+// const getIpAddressFromBackend = callable<[], { status: string; ip_address?: string; message?: string }>("get_ip_address");
 const getTextContent = callable<[], { status: string; content: string }>("get_text_content");
 const getPendingNotifications = callable<[], { status: string; notifications?: { title: string; body?: string; urgency?: string; timestamp?: number }[] }>("get_pending_notifications");
 const getDownloadDir = callable<[], { status: string; path?: string; message?: string }>("get_download_dir");

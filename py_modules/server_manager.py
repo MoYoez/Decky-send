@@ -20,9 +20,9 @@ import utils
 import file_operations
 import html_templates
 
-# 
+# =============================================================================
 # Switch File Monitoring
-# 
+# =============================================================================
 
 def _monitor_switch_file(plugin):
     """Monitor the switch file for changes with proper resource management
@@ -118,9 +118,9 @@ def _monitor_switch_file(plugin):
     monitor_thread.start()
 
 
-# 
+# =============================================================================
 # Watchdog Health Monitor
-# 
+# =============================================================================
 
 def _watchdog_monitor(plugin):
     """Monitor service health and correct inconsistent states
@@ -230,9 +230,9 @@ def stop_watchdog(plugin):
 start_watchdog = _watchdog_monitor
 
 
-# 
+# =============================================================================
 # Main Server Management
-# 
+# =============================================================================
 
 async def start_server_async(plugin):
     """Start the HTTP server asynchronously
@@ -583,9 +583,9 @@ async def get_server_status(plugin):
     }
 
 
-# 
+# =============================================================================
 # Settings Management
-# 
+# =============================================================================
 
 async def load_settings(plugin):
     """Load server settings from decky settings
@@ -612,20 +612,8 @@ async def load_settings(plugin):
 
         # Load auto copy text setting
         plugin.auto_copy_text_enabled = bool(settings.get(plugin.SETTING_AUTO_COPY_TEXT, False))
-
         plugin.prompt_upload_path_enabled = bool(settings.get(plugin.SETTING_PROMPT_UPLOAD_PATH, False))
         plugin.language_preference = settings.get(plugin.SETTING_LANGUAGE, "auto")
-
-
-        plugin.prompt_upload_path_enabled = bool(settings.get(plugin.SETTING_PROMPT_UPLOAD_PATH, False))
-        plugin.language_preference = settings.get(plugin.SETTING_LANGUAGE, "auto")
-
-
-        plugin.prompt_upload_path_enabled = bool(settings.get(plugin.SETTING_PROMPT_UPLOAD_PATH, False))
-
-
-
-
 
         # Ensure downloads directory exists
         try:
@@ -634,37 +622,13 @@ async def load_settings(plugin):
             config.logger.error(f"Failed to create downloads directory: {e}")
         
         config.logger.info(
-
             "Loaded settings: running=%s, port=%s, downloads_dir=%s, auto_copy_text=%s, prompt_upload_path=%s, language=%s",
-
-
-            "Loaded settings: running=%s, port=%s, downloads_dir=%s, auto_copy_text=%s, prompt_upload_path=%s, language=%s",
-
-
-            "Loaded settings: running=%s, port=%s, downloads_dir=%s, auto_copy_text=%s, prompt_upload_path=%s",
-
-            "Loaded settings: running=%s, port=%s, downloads_dir=%s, auto_copy_text=%s",
-
-
-
             plugin.server_running,
             plugin.server_port,
             plugin.downloads_dir,
             plugin.auto_copy_text_enabled,
-
             plugin.prompt_upload_path_enabled,
             plugin.language_preference,
-
-
-            plugin.prompt_upload_path_enabled,
-            plugin.language_preference,
-
-
-            plugin.prompt_upload_path_enabled,
-
-
-
-
         )
         
     except Exception as e:
@@ -684,20 +648,8 @@ async def save_settings(plugin):
             plugin.SETTING_PORT: plugin.server_port,
             plugin.SETTING_DOWNLOAD_DIR: plugin.downloads_dir,
             plugin.SETTING_AUTO_COPY_TEXT: bool(plugin.auto_copy_text_enabled),
-
             plugin.SETTING_PROMPT_UPLOAD_PATH: bool(plugin.prompt_upload_path_enabled),
             plugin.SETTING_LANGUAGE: getattr(plugin, "language_preference", "auto"),
-
-
-            plugin.SETTING_PROMPT_UPLOAD_PATH: bool(plugin.prompt_upload_path_enabled),
-            plugin.SETTING_LANGUAGE: getattr(plugin, "language_preference", "auto"),
-
-
-            plugin.SETTING_PROMPT_UPLOAD_PATH: bool(plugin.prompt_upload_path_enabled),
-
-
-
-
         }
         
         # Save settings
@@ -709,9 +661,9 @@ async def save_settings(plugin):
         config.logger.error(f"Failed to save settings: {e}")
 
 
-# 
+# =============================================================================
 # CORS Middleware
-# 
+# =============================================================================
 
 @web.middleware
 async def cors_middleware(request, handler):
@@ -734,9 +686,9 @@ async def cors_middleware(request, handler):
     return response
 
 
-# 
+# =============================================================================
 # Route Setup Helpers
-# 
+# =============================================================================
 
 def setup_main_server_routes(app, plugin):
     """Configure main server routes
@@ -775,9 +727,9 @@ def setup_main_server_routes(app, plugin):
     app.router.add_route('OPTIONS', '/{path:.*}', lambda r: web.Response())
 
 
-# 
+# =============================================================================
 # Public API aliases
-# 
+# =============================================================================
 
 # Expose _monitor_switch_file as monitor_switch_file for external use
 monitor_switch_file = _monitor_switch_file
